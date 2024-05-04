@@ -22,7 +22,7 @@
     <!-- P R O J E C T                                                           -->
     <!-- ======================================================================= -->
     <parent>
-        <groupId>net.adamcin.jardiff</groupId>
+        <groupId>net.adamcin.jardelta</groupId>
         <artifactId>tests</artifactId>
         <version>0.1.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
@@ -36,14 +36,14 @@
 
     <packaging>jar</packaging>
 
-    <name>jardiff - core-acceptance-tests</name>
-    <description>Acceptance Tests for jardiff-core using test bundles</description>
+    <name>jardelta - core-acceptance-tests</name>
+    <description>Acceptance Tests for jardelta-core using test bundles</description>
     <inceptionYear>2024</inceptionYear>
 
     <scm>
-        <connection>scm:git:git@github.com:adamcin/jardiff.git</connection>
-        <developerConnection>scm:git:git@github.com:adamcin/jardiff.git</developerConnection>
-        <url>https://github.com/adamcin/jardiff/tree/main/tests/core-acceptance-tests</url>
+        <connection>scm:git:git@github.com:adamcin/jardelta.git</connection>
+        <developerConnection>scm:git:git@github.com:adamcin/jardelta.git</developerConnection>
+        <url>https://github.com/adamcin/jardelta/tree/main/tests/core-acceptance-tests</url>
     </scm>
 
     <build>
@@ -108,26 +108,26 @@
 
     <dependencies>
         <dependency>
-            <groupId>net.adamcin.jardiff</groupId>
+            <groupId>net.adamcin.jardelta</groupId>
             <artifactId>example-bundle-scr</artifactId>
             <version>0.1.1-SNAPSHOT</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
-            <groupId>net.adamcin.jardiff</groupId>
+            <groupId>net.adamcin.jardelta</groupId>
             <artifactId>example-bundle-ds</artifactId>
             <version>0.1.1-SNAPSHOT</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
-            <groupId>net.adamcin.jardiff</groupId>
+            <groupId>net.adamcin.jardelta</groupId>
             <artifactId>example-bnd-ds</artifactId>
             <version>0.1.1-SNAPSHOT</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
-            <groupId>net.adamcin.jardiff</groupId>
-            <artifactId>jardiff-core</artifactId>
+            <groupId>net.adamcin.jardelta</groupId>
+            <artifactId>jardelta-core</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>

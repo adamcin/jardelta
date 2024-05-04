@@ -1,4 +1,4 @@
-# jardiff
+# jardelta
 Compare two jars to quantify drop-in replaceability.
 
 ## Diff Kinds

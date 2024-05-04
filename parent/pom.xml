@@ -21,20 +21,20 @@
     <!-- ======================================================================= -->
     <!-- P R O J E C T                                                           -->
     <!-- ======================================================================= -->
-    <groupId>net.adamcin.jardiff</groupId>
+    <groupId>net.adamcin.jardelta</groupId>
     <artifactId>parent</artifactId>
     <version>0.1.1-SNAPSHOT</version>
 
     <packaging>pom</packaging>
 
-    <name>jardiff - Parent</name>
-    <description>The parent pom for jardiff</description>
+    <name>jardelta - parent</name>
+    <description>The parent pom for jardelta</description>
     <inceptionYear>2024</inceptionYear>
 
     <scm>
-        <connection>scm:git:git@github.com:adamcin/jardiff.git</connection>
-        <developerConnection>scm:git:git@github.com:adamcin/jardiff.git</developerConnection>
-        <url>https://github.com/adamcin/jardiff/tree/main/parent</url>
+        <connection>scm:git:git@github.com:adamcin/jardelta.git</connection>
+        <developerConnection>scm:git:git@github.com:adamcin/jardelta.git</developerConnection>
+        <url>https://github.com/adamcin/jardelta/tree/main/parent</url>
     </scm>
 
     <properties>

@@ -22,7 +22,7 @@
     <!-- P R O J E C T                                                           -->
     <!-- ======================================================================= -->
     <parent>
-        <groupId>net.adamcin.jardiff</groupId>
+        <groupId>net.adamcin.jardelta</groupId>
         <artifactId>tests</artifactId>
         <version>0.1.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
@@ -36,14 +36,14 @@
 
     <packaging>jar</packaging>
 
-    <name>jardiff - example-bnd-ds bundle</name>
+    <name>jardelta - example-bnd-ds bundle</name>
     <description>The example-bnd-ds bundle built using bnd-maven-plugin with DS annotations</description>
     <inceptionYear>2024</inceptionYear>
 
     <scm>
-        <connection>scm:git:git@github.com:adamcin/jardiff.git</connection>
-        <developerConnection>scm:git:git@github.com:adamcin/jardiff.git</developerConnection>
-        <url>https://github.com/adamcin/jardiff/tree/main/tests/example-bnd-ds</url>
+        <connection>scm:git:git@github.com:adamcin/jardelta.git</connection>
+        <developerConnection>scm:git:git@github.com:adamcin/jardelta.git</developerConnection>
+        <url>https://github.com/adamcin/jardelta/tree/main/tests/example-bnd-ds</url>
     </scm>
 
     <build>
@@ -64,8 +64,8 @@
                         </goals>
                         <configuration>
                             <bnd><![CDATA[
-                                Bundle-SymbolicName: net.adamcin.jardiff.testing.example
-                                Automatic-Module-Name: net.adamcin.jardiff.testing.example
+                                Bundle-SymbolicName: net.adamcin.jardelta.testing.example
+                                Automatic-Module-Name: net.adamcin.jardelta.testing.example
                                 # reproducible builds (https://github.com/bndtools/bnd/issues/3521)
                                 -noextraheaders: true
                             ]]></bnd>
@@ -88,7 +88,7 @@
 
     <dependencies>
         <dependency>
-            <groupId>net.adamcin.jardiff</groupId>
+            <groupId>net.adamcin.jardelta</groupId>
             <artifactId>example-bundle-scr</artifactId>
             <classifier>sources</classifier>
             <scope>provided</scope>

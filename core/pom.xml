@@ -22,7 +22,7 @@
     <!-- P A R E N T                                                             -->
     <!-- ======================================================================= -->
     <parent>
-        <groupId>net.adamcin.jardiff</groupId>
+        <groupId>net.adamcin.jardelta</groupId>
         <artifactId>parent</artifactId>
         <version>0.1.1-SNAPSHOT</version>
         <relativePath>../parent/pom.xml</relativePath>
@@ -31,19 +31,19 @@
     <!-- ======================================================================= -->
     <!-- P R O J E C T                                                           -->
     <!-- ======================================================================= -->
-    <artifactId>jardiff-core</artifactId>
+    <artifactId>jardelta-core</artifactId>
     <version>0.1.1-SNAPSHOT</version>
 
     <packaging>jar</packaging>
 
-    <name>jardiff - core</name>
-    <description>The core library for jardiff</description>
+    <name>jardelta - core</name>
+    <description>The core library for jardelta</description>
     <inceptionYear>2024</inceptionYear>
 
     <scm>
-        <connection>scm:git:git@github.com:adamcin/jardiff.git</connection>
-        <developerConnection>scm:git:git@github.com:adamcin/jardiff.git</developerConnection>
-        <url>https://github.com/adamcin/jardiff/tree/main/core</url>
+        <connection>scm:git:git@github.com:adamcin/jardelta.git</connection>
+        <developerConnection>scm:git:git@github.com:adamcin/jardelta.git</developerConnection>
+        <url>https://github.com/adamcin/jardelta/tree/main/core</url>
     </scm>
 
     <build>
