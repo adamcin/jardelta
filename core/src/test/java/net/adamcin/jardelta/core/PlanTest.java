@@ -16,12 +16,6 @@
 
 package net.adamcin.jardelta.core;
 
-import net.adamcin.jardelta.core.Context;
-import net.adamcin.jardelta.core.Diff;
-import net.adamcin.jardelta.core.Diffs;
-import net.adamcin.jardelta.core.Jars;
-import net.adamcin.jardelta.core.Name;
-import net.adamcin.jardelta.core.Plan;
 import net.adamcin.jardelta.core.entry.JarEntryDiffer;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
@@ -39,11 +33,10 @@ class PlanTest {
 
     @Test
     void compareScr() {
-        final Context context = Context.builder().jars(Jars.of(
+        final Context context = Context.builder().jars(Jars.from(
                         getResourceAbsolute("examples/simpleText1/"),
-                        getResourceAbsolute("examples/simpleText2/"))
-                .getOrThrow()).build();
-        final Diffs diffs = new Plan().execute(context);
+                        getResourceAbsolute("examples/simpleText2/"))).build();
+        final Diffs diffs = new Plan().execute(context).getResults();
         assertEquals(
                 Diffs.of(Diff.builder(JarEntryDiffer.DIFF_KIND).named(Name.of("helloworld.txt")).changed()), diffs);
     }

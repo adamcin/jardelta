@@ -21,6 +21,7 @@ import org.apache.felix.scr.annotations.Activate;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.Properties;
 import org.apache.felix.scr.annotations.Property;
+import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.Service;
 import org.osgi.service.metatype.annotations.AttributeDefinition;
 import org.osgi.service.metatype.annotations.Designate;
@@ -49,6 +50,10 @@ public class ExampleSingletonImpl implements ExampleSingleton {
                 options = {@Option(DEFAULT_CONST)})
         String exampleSingleton_const_string() default DEFAULT_CONST;
     }
+
+    @Reference(target = "(custom.name=foobar)")
+    @org.osgi.service.component.annotations.Reference
+    private Runnable runnableService;
 
     @Activate
     @org.osgi.service.component.annotations.Activate

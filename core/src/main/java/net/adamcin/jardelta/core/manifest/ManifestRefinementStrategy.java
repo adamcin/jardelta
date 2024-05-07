@@ -18,11 +18,13 @@ package net.adamcin.jardelta.core.manifest;
 
 import net.adamcin.jardelta.core.Context;
 import net.adamcin.jardelta.core.Diff;
-import net.adamcin.jardelta.core.JarPath;
+import net.adamcin.jardelta.core.Element;
+import net.adamcin.jardelta.core.OpenJar;
 import net.adamcin.jardelta.core.Action;
 import net.adamcin.jardelta.core.Diffs;
-import net.adamcin.jardelta.core.RefinedDiff;
+import net.adamcin.jardelta.core.Refinement;
 import net.adamcin.jardelta.core.RefinementStrategy;
+import net.adamcin.streamsupport.Both;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
@@ -31,14 +33,16 @@ import java.util.stream.Collectors;
 public class ManifestRefinementStrategy implements RefinementStrategy {
 
     @Override
-    public @NotNull RefinedDiff refine(@NotNull Context context, @NotNull Diffs diffs) {
+    public @NotNull Refinement refine(@NotNull Context context,
+                                      @NotNull Diffs diffs,
+                                      @NotNull Element<OpenJar> openJars) throws Exception {
         List<Diff> superseded = diffs.stream().filter(diff -> diff.getName().equals(Manifests.NAME_MANIFEST)
                 && diff.getAction() == Action.CHANGED).collect(Collectors.toList());
         if (superseded.isEmpty()) {
-            return RefinedDiff.EMPTY;
+            return Refinement.EMPTY;
         } else {
-            return new RefinedDiff(superseded,
-                    new ManifestDiffer().diff(new Manifests(context.getJars().both().mapOptional(JarPath::getManifest)))
+            return new Refinement(superseded,
+                    new ManifestDiffer().diff(new Manifests(openJars.both().mapOptional(OpenJar::getManifest)))
                             .collect(Diffs.collect()));
         }
     }

@@ -20,7 +20,7 @@ import jakarta.json.Json;
 import jakarta.json.stream.JsonCollectors;
 import net.adamcin.jardelta.core.Diff;
 import net.adamcin.jardelta.core.Differ;
-import net.adamcin.jardelta.core.util.GenericDiff;
+import net.adamcin.jardelta.core.util.GenericDiffers;
 import net.adamcin.streamsupport.Both;
 import net.adamcin.streamsupport.Fun;
 import org.jetbrains.annotations.NotNull;
@@ -40,7 +40,7 @@ public class MetaTypeOCDDiffer implements Differ<MetaTypeOCD> {
 
     @Override
     public @NotNull Stream<Diff> diff(@NotNull MetaTypeOCD diffed) {
-        final Diff.Builder diffBuilder = new Diff.Builder(DIFF_KIND).named(diffed.getName());
+        final Diff.Builder diffBuilder = new Diff.Builder(DIFF_KIND).named(diffed.name());
         final Stream<Diff> ocdElementDiffs = Stream.of(
                 Fun.toEntry("@name", diffed.both().mapOptional(ObjectClassDefinition::getName)),
                 Fun.toEntry("@description", diffed.both().mapOptional(ObjectClassDefinition::getDescription))
@@ -53,10 +53,10 @@ public class MetaTypeOCDDiffer implements Differ<MetaTypeOCD> {
                     return attributeStream.collect(Collectors.groupingBy(AttributeDefinition::getID));
                 });
 
-        return Stream.concat(ocdElementDiffs, GenericDiff.ofAllInEitherMap(diffBuilder::child, bothAttributeDefinitions,
+        return Stream.concat(ocdElementDiffs, GenericDiffers.ofAllInEitherMap(diffBuilder::child, bothAttributeDefinitions,
                 (attributeId, bothLists) -> {
                     final Diff.Builder childBuilder = diffBuilder.child(attributeId);
-                    return GenericDiff.ofAtMostOne(childBuilder, bothLists.map(Optional::get),
+                    return GenericDiffers.ofAtMostOne(childBuilder, bothLists.map(Optional::get),
                             bothAttributes -> Stream.concat(diffADProperties(childBuilder, bothAttributes),
                                     diffOptions(childBuilder, bothAttributes))
                     );
@@ -95,10 +95,10 @@ public class MetaTypeOCDDiffer implements Differ<MetaTypeOCD> {
                                                         ? Optional.ofNullable(labels[index])
                                                         : Optional.<String>empty()))
                                         .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)))));
-        return GenericDiff.ofOptionals(optionsDiff, bothOptionsMaps, optionsMap ->
-                GenericDiff.ofAllInEitherMap(optionsDiff::child, optionsMap, (option, optOptLabels) -> {
+        return GenericDiffers.ofOptionals(optionsDiff, bothOptionsMaps, optionsMap ->
+                GenericDiffers.ofAllInEitherMap(optionsDiff::child, optionsMap, (option, optOptLabels) -> {
                     final Diff.Builder optionValueDiff = optionsDiff.child(option);
-                    return GenericDiff.ofOptionals(optionValueDiff,
+                    return GenericDiffers.ofOptionals(optionValueDiff,
                             optOptLabels.map(optOptLabel -> optOptLabel.flatMap(label -> label)),
                             labels -> labels.testBoth(Objects::equals)
                                     ? Stream.empty()
@@ -122,7 +122,7 @@ public class MetaTypeOCDDiffer implements Differ<MetaTypeOCD> {
                               @NotNull Both<Optional<String>> values) {
         final Diff.Builder elementDiff = parentBuilder.child(key);
         final Both<Optional<String>> required = requireChars(values);
-        return GenericDiff.ofOptionals(elementDiff, required, diffed -> {
+        return GenericDiffers.ofOptionals(elementDiff, required, diffed -> {
             if (diffed.testBoth(Objects::equals)) {
                 return Stream.empty();
             } else {

@@ -16,6 +16,7 @@
 
 package net.adamcin.jardelta.core;
 
+import aQute.bnd.osgi.FileResource;
 import aQute.bnd.osgi.Jar;
 import aQute.bnd.osgi.Resource;
 import net.adamcin.jardelta.core.entry.JarEntryMetadata;
@@ -26,6 +27,7 @@ import org.jetbrains.annotations.Nullable;
 import org.osgi.framework.Bundle;
 
 import java.io.Closeable;
+import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -44,17 +46,16 @@ import static net.adamcin.streamsupport.Fun.mapEntry;
 import static net.adamcin.streamsupport.Fun.result0;
 import static net.adamcin.streamsupport.Fun.uncheck0;
 
-public class JarPath implements Closeable {
-    private final Path path;
+public class OpenJar implements Closeable {
     private final Jar jar;
     private final Set<Name> names;
     private final Set<Name> dirNames;
     private final Manifest manifest;
     private final Bundle bundleFacade;
-    private final Map<Name, Result<JarEntryMetadata>> resourceCache = new TreeMap<>();
+    private final Map<Name, Result<JarEntryMetadata>> resourceCache;
 
-    private JarPath(@NotNull Path path, @NotNull Jar jar, @Nullable Manifest manifest) {
-        this.path = path;
+    private OpenJar(@NotNull Jar jar, @NotNull Map<Name, Result<JarEntryMetadata>> resourceCache) {
+        this.resourceCache = resourceCache;
         this.jar = jar;
         this.names = this.jar.getResources().keySet().stream()
                 .map(Name::of)
@@ -62,18 +63,8 @@ public class JarPath implements Closeable {
         this.dirNames = this.jar.getDirectories().keySet().stream()
                 .map(Name::of)
                 .collect(Collectors.toCollection(TreeSet::new));
-        this.manifest = manifest;
+        this.manifest = result0(jar::getManifest).get().getOrDefault(null);
         this.bundleFacade = new BundleFacade(this);
-    }
-
-    @NotNull
-    public Path getPath() {
-        return path;
-    }
-
-    @NotNull
-    public Jar getJar() {
-        return jar;
     }
 
     public String getVersion() {
@@ -129,7 +120,7 @@ public class JarPath implements Closeable {
         return Optional.ofNullable(getManifest())
                 .flatMap(manny ->
                         result0(() -> manny.getMainAttributes()
-                                .getValue(attribute.getFileName().toString()))
+                                .getValue(attribute.getSegment()))
                                 .get().toOptional())
                 .orElse(null);
     }
@@ -162,21 +153,10 @@ public class JarPath implements Closeable {
     }
 
     @NotNull
-    public static Result<JarPath> fromURL(@NotNull URL jarUrl) {
-        return readURL(jarUrl).flatMap(mapEntry(JarPath::newInstance));
-    }
-
-    static Result<JarPath> newInstance(@NotNull Path path, @NotNull Jar jar) {
-
-        return result0(jar::getManifest).get().map(manifest -> new JarPath(path, jar, manifest));
-    }
-
-    static Result<Map.Entry<Path, Jar>> readURL(@NotNull URL url) {
-        try (Resource resource = Resource.fromURL(url)) {
-            return Result.success(Fun.toEntry(Path.of(url.toURI()), Jar.fromResource(url.getFile(), resource)));
-        } catch (Exception e) {
-            return Result.failure(e);
-        }
+    public static OpenJar fromFile(@Nullable String name,
+                                   @NotNull Path path,
+                                   @NotNull Map<Name, Result<JarEntryMetadata>> resourceCache) throws Exception {
+        return new OpenJar(Jar.fromResource(name, new FileResource(path)), resourceCache);
     }
 
 }

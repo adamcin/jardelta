@@ -27,7 +27,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Stream;
 
-public class JarDiffer implements Differ<Jars> {
+public class JarDiffer implements Differ<Element<OpenJar>> {
     private final Settings settings;
 
     public JarDiffer(@NotNull Settings settings) {
@@ -35,8 +35,8 @@ public class JarDiffer implements Differ<Jars> {
     }
 
     @Override
-    public @NotNull Stream<Diff> diff(@NotNull Jars diffed) {
-        final Both<Map.Entry<JarPath, Set<Name>>> resources = diffed.both()
+    public @NotNull Stream<Diff> diff(@NotNull Element<OpenJar> diffed) {
+        final Both<Map.Entry<OpenJar, Set<Name>>> resources = diffed.both()
                 .map(jar -> Fun.toEntry(jar, jar.getNames()));
         Set<Name> allNames = resources.map(Map.Entry::getValue).stream()
                 .reduce(new TreeSet<>(), (acc, add) -> {

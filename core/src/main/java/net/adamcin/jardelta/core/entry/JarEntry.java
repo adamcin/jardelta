@@ -17,14 +17,14 @@
 package net.adamcin.jardelta.core.entry;
 
 import net.adamcin.jardelta.core.Name;
-import net.adamcin.jardelta.core.Diffed;
+import net.adamcin.jardelta.core.Element;
 import net.adamcin.streamsupport.Both;
 import net.adamcin.streamsupport.Result;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Optional;
 
-public class JarEntry implements Diffed<Optional<Result<JarEntryMetadata>>> {
+public class JarEntry implements Element<Optional<Result<JarEntryMetadata>>> {
 
     private final Name name;
     private final Both<Optional<Result<JarEntryMetadata>>> values;
@@ -36,7 +36,7 @@ public class JarEntry implements Diffed<Optional<Result<JarEntryMetadata>>> {
     }
 
     @Override
-    public @NotNull Name getName() {
+    public @NotNull Name name() {
         return name;
     }
 

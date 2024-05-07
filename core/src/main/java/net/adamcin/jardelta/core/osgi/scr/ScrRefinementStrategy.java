@@ -17,15 +17,17 @@
 package net.adamcin.jardelta.core.osgi.scr;
 
 import aQute.bnd.osgi.Constants;
+import net.adamcin.jardelta.core.Action;
 import net.adamcin.jardelta.core.Context;
 import net.adamcin.jardelta.core.Diff;
-import net.adamcin.jardelta.core.JarPath;
-import net.adamcin.jardelta.core.Name;
-import net.adamcin.jardelta.core.entry.JarEntryDiffer;
-import net.adamcin.jardelta.core.Action;
 import net.adamcin.jardelta.core.Diffs;
-import net.adamcin.jardelta.core.RefinedDiff;
+import net.adamcin.jardelta.core.Element;
+import net.adamcin.jardelta.core.Name;
+import net.adamcin.jardelta.core.OpenJar;
+import net.adamcin.jardelta.core.Refinement;
 import net.adamcin.jardelta.core.RefinementStrategy;
+import net.adamcin.jardelta.core.entry.JarEntryDiffer;
+import net.adamcin.jardelta.core.util.GenericDiffers;
 import net.adamcin.streamsupport.Both;
 import net.adamcin.streamsupport.Fun;
 import net.adamcin.streamsupport.Result;
@@ -57,14 +59,14 @@ public class ScrRefinementStrategy implements RefinementStrategy {
     public static final String KIND = "osgi.scr";
 
     @Override
-    public @NotNull RefinedDiff refine(@NotNull Context context, @NotNull Diffs diffs) {
+    public @NotNull Refinement refine(@NotNull Context context, @NotNull Diffs diffs, @NotNull Element<OpenJar> openJars) throws Exception {
         // no point in deep comparison of scr unless both jars are bundles
-        if (context.getJars().mixedPackaging()) {
-            return RefinedDiff.EMPTY;
+        if (openJars.both().map(OpenJar::isBundle).testBoth((left, right) -> !left || !right)) {
+            return Refinement.EMPTY;
         }
 
-        Both<Map<Name, Result<List<ComponentMetadata>>>> allDescriptors = context.getJars().both()
-                .map(JarPath::getBundle)
+        Both<Map<Name, Result<List<ComponentMetadata>>>> allDescriptors = openJars.both()
+                .map(OpenJar::getBundle)
                 .map(this::getScrResources);
 
         final Set<Name> descriptorNames = allDescriptors.stream()
@@ -78,7 +80,7 @@ public class ScrRefinementStrategy implements RefinementStrategy {
                 .collect(Collectors.toList());
 
         if (refined.isEmpty()) {
-            return RefinedDiff.EMPTY;
+            return Refinement.EMPTY;
         }
 
         final Set<Name> refinedNames = refined.stream()
@@ -112,24 +114,25 @@ public class ScrRefinementStrategy implements RefinementStrategy {
                 .flatMap(List::stream)
                 .collect(Collectors.groupingBy(ComponentMetadata::getName)));
 
-        Set<String> allComponentNames = bothGrouped.stream()
-                .map(Map::keySet)
-                .flatMap(Set::stream).collect(Collectors.toCollection(TreeSet::new));
-
         // check for special case
-        if (allComponentNames.contains("icd")) {
-            invalidDiffs.add(Diff.builder(KIND).named(NAME_PREFIX.append("icd.duplicates.detected")).build(Action.ERR_RIGHT));
-            allComponentNames.remove("icd");
+        if (bothGrouped.left().containsKey("icd")) {
+            invalidDiffs.add(Diff.builder(KIND).named(NAME_PREFIX.appendSegment("icd.duplicates.detected")).build(Action.ERR_LEFT));
+        }
+        if (bothGrouped.right().containsKey("icd")) {
+            invalidDiffs.add(Diff.builder(KIND).named(NAME_PREFIX.appendSegment("icd.duplicates.detected")).build(Action.ERR_RIGHT));
         }
 
-        final ScrDescriptorsDiffer differ = new ScrDescriptorsDiffer();
-        Diffs allDiffs = Stream.concat(invalidDiffs.stream(), allComponentNames.stream()
-                .map(componentName ->
-                        new ScrDescriptors(componentName,
-                                bothGrouped.map(map -> map.getOrDefault(componentName, Collections.emptyList()))))
-                .flatMap(differ::diff))
-                .collect(Diffs.collect());
-        return new RefinedDiff(refined, allDiffs);
+        final ScrComponentsDiffer differ = new ScrComponentsDiffer();
+        Stream<Diff> componentDiffs =
+                GenericDiffers.ofAllInEitherMap(diff::child, bothGrouped, (key, bothLists) ->
+                        GenericDiffers.ofAtMostOne(diff, bothLists.map(optList -> optList.orElse(Collections.emptyList())),
+                                singled -> {
+                                    ScrComponents components = new ScrComponents(key, singled);
+                                    return differ.diff(components);
+                                }));
+
+        Diffs allDiffs = Stream.concat(invalidDiffs.stream(), componentDiffs).collect(Diffs.collect());
+        return new Refinement(refined, allDiffs);
     }
 
     Map<Name, Result<List<ComponentMetadata>>> getScrResources(final @NotNull Bundle bundle) {

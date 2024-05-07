@@ -16,7 +16,7 @@
 
 package net.adamcin.jardelta.core.osgi.ocd;
 
-import net.adamcin.jardelta.core.Diffed;
+import net.adamcin.jardelta.core.Element;
 import net.adamcin.jardelta.core.Name;
 import net.adamcin.streamsupport.Both;
 import org.jetbrains.annotations.NotNull;
@@ -29,7 +29,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public class AllDesignates implements Diffed<Map<String, List<MetaTypeDesignate>>> {
+public class AllDesignates implements Element<Map<String, List<MetaTypeDesignate>>> {
     private final Set<String> pids;
     private final Both<Map<String, List<MetaTypeDesignate>>> values;
 
@@ -49,7 +49,7 @@ public class AllDesignates implements Diffed<Map<String, List<MetaTypeDesignate>
     }
 
     @Override
-    public @NotNull Name getName() {
+    public @NotNull Name name() {
         return MetaTypeRefinementStrategy.NAME_PREFIX;
     }
 

@@ -24,7 +24,7 @@ public class MFAttributeDiff {
 
     public static Diff ofRawValue(@NotNull String kind, @NotNull MFAttribute diffed) {
         assert diffed.isDiff();
-        final Diff.Builder diffBuilder = Diff.builder(kind).named(diffed.getName());
+        final Diff.Builder diffBuilder = Diff.builder(kind).named(diffed.name());
 
         Action action;
         if (diffed.both().left().isEmpty()) {

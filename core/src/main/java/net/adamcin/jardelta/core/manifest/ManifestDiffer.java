@@ -18,7 +18,7 @@ package net.adamcin.jardelta.core.manifest;
 
 import net.adamcin.jardelta.core.Diff;
 import net.adamcin.jardelta.core.Differ;
-import net.adamcin.jardelta.core.util.GenericDiff;
+import net.adamcin.jardelta.core.util.GenericDiffers;
 import net.adamcin.streamsupport.Both;
 import net.adamcin.streamsupport.Fun;
 import org.jetbrains.annotations.NotNull;
@@ -34,8 +34,8 @@ public class ManifestDiffer implements Differ<Manifests> {
 
     @Override
     public @NotNull Stream<Diff> diff(@NotNull Manifests diffed) {
-        final Diff.Builder diffBuilder = Diff.builder(DIFF_KIND).named(diffed.getName());
-        return GenericDiff.ofOptionals(diffBuilder, diffed.both(), values ->
+        final Diff.Builder diffBuilder = Diff.builder(DIFF_KIND).named(diffed.name());
+        return GenericDiffers.ofOptionals(diffBuilder, diffed.both(), values ->
                 diffMainAttributes(values.map(Manifest::getMainAttributes)));
     }
 
@@ -49,7 +49,7 @@ public class ManifestDiffer implements Differ<Manifests> {
                 .collect(Collectors.toSet());
 
         return allNames.stream()
-                .map(name -> new MFAttribute(Manifests.NAME_MANIFEST.append(name.toString()),
+                .map(name -> new MFAttribute(Manifests.NAME_MANIFEST.appendSegment(name.toString()),
                         FallbackAttributeHandler.ANY_ATTRIBUTE,
                         bothAttributes.mapOptional(attributes -> attributes.getValue(name))))
                 .filter(MFAttribute::isDiff)

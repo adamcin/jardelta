@@ -17,7 +17,7 @@
 package net.adamcin.jardelta.core.osgi.header;
 
 import aQute.bnd.header.Parameters;
-import net.adamcin.jardelta.core.Diffed;
+import net.adamcin.jardelta.core.Element;
 import net.adamcin.jardelta.core.Name;
 import net.adamcin.jardelta.core.manifest.Manifests;
 import net.adamcin.streamsupport.Both;
@@ -26,7 +26,7 @@ import org.jetbrains.annotations.NotNull;
 import java.util.Optional;
 import java.util.jar.Attributes;
 
-public class Instructions implements Diffed<Optional<Parameters>> {
+public class Instructions implements Element<Optional<Parameters>> {
 
     private final Attributes.Name attributeName;
     private final Both<Optional<Parameters>> values;
@@ -43,8 +43,8 @@ public class Instructions implements Diffed<Optional<Parameters>> {
     }
 
     @Override
-    public @NotNull Name getName() {
-        return Manifests.NAME_MANIFEST.append(getAttributeName().toString());
+    public @NotNull Name name() {
+        return Manifests.NAME_MANIFEST.appendSegment(getAttributeName().toString());
     }
 
     @Override

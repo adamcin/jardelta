@@ -24,10 +24,12 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.Collection;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.BiFunction;
+import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
@@ -38,7 +40,46 @@ import java.util.stream.Stream;
  * {@link net.adamcin.jardelta.core.Action#ERR_RIGHT} diffs based on generic container types, with delegation to
  * provided lambdas for non-generic type handling when the containers are otherwise identical.
  */
-public final class GenericDiff {
+public final class GenericDiffers {
+
+    /**
+     * Compare both objects, returning {@link java.util.stream.Stream#empty()} when {@code equalityTest} returns true,
+     * and {@link net.adamcin.jardelta.core.Action#CHANGED} when it returns false.
+     *
+     * @param diffBuilder  a diff builder
+     * @param values       both values
+     * @param equalityTest delegate function for present-present case
+     * @param <T>          the type parameter of the Optional values
+     * @return the diff stream
+     */
+    @NotNull
+    public static <T> Stream<Diff> ofObjectEquality(
+            @NotNull Diff.Builder diffBuilder,
+            @NotNull Both<T> values,
+            @NotNull BiPredicate<? super T, ? super T> equalityTest) {
+        if (values.testBoth(equalityTest)) {
+            return Stream.empty();
+        } else {
+            return Stream.of(diffBuilder.changed());
+        }
+    }
+
+    /**
+     * Compare both objects, returning {@link java.util.stream.Stream#empty()} when
+     * {@link Objects#deepEquals(Object, Object)} returns true, and {@link net.adamcin.jardelta.core.Action#CHANGED}
+     * when it returns false.
+     *
+     * @param diffBuilder a diff builder
+     * @param values      both values
+     * @param <T>         the type parameter of the Optional values
+     * @return the diff stream
+     */
+    @NotNull
+    public static <T> Stream<Diff> ofObjectEquality(
+            @NotNull Diff.Builder diffBuilder,
+            @NotNull Both<T> values) {
+        return ofObjectEquality(diffBuilder, values, Objects::deepEquals);
+    }
 
     /**
      * Compare both optionals, returning {@link java.util.stream.Stream#empty()} for empty-empty,
@@ -67,6 +108,24 @@ public final class GenericDiff {
             return ifBothPresent.apply(values.map(Optional::get));
         }
         return Stream.empty();
+    }
+
+    /**
+     * Compare both optionals, returning {@link java.util.stream.Stream#empty()} for empty-empty,
+     * {@link net.adamcin.jardelta.core.Action#ADDED} for empty-present, and {@link net.adamcin.jardelta.core.Action#REMOVED}
+     * for present-empty, while delegating present-present to
+     * {@link #ofObjectEquality(net.adamcin.jardelta.core.Diff.Builder, net.adamcin.streamsupport.Both)}.
+     *
+     * @param diffBuilder a diff builder
+     * @param values      both values
+     * @param <T>         the type parameter of the Optional values
+     * @return the diff stream
+     */
+    @NotNull
+    public static <T> Stream<Diff> ofOptionals(
+            @NotNull Diff.Builder diffBuilder,
+            @NotNull Both<Optional<T>> values) {
+        return ofOptionals(diffBuilder, values, present -> ofObjectEquality(diffBuilder, present));
     }
 
     /**
@@ -139,6 +198,27 @@ public final class GenericDiff {
     }
 
     /**
+     * Compare both iterables based on cardinality, where only one comparable value is expected. Cases of zero-one,
+     * one-zero, and one-one are mapped to {@link net.adamcin.streamsupport.Result#success(Object)}, while a many
+     * cardinality on either side is mapped to a respective {@link net.adamcin.streamsupport.Result#failure(String)}.
+     * This pair is then delegated to {@link #ofResults(net.adamcin.jardelta.core.Diff.Builder,
+     * net.adamcin.streamsupport.Both, java.util.function.Function)} and {@link #ofOptionals(net.adamcin.jardelta.core.Diff.Builder,
+     * net.adamcin.streamsupport.Both, java.util.function.Function)}
+     * and then to {@link #ofObjectEquality(net.adamcin.jardelta.core.Diff.Builder, net.adamcin.streamsupport.Both)}.
+     *
+     * @param diffBuilder a diff builder
+     * @param values      both values
+     * @param <T>         the type parameter of the Iterable values
+     * @return the diff stream
+     */
+    @NotNull
+    public static <T> Stream<Diff> ofAtMostOne(
+            @NotNull Diff.Builder diffBuilder,
+            @NotNull Both<? extends Iterable<T>> values) {
+        return ofAtMostOne(diffBuilder, values, present -> ofObjectEquality(diffBuilder, present));
+    }
+
+    /**
      * Compare both collections by iterating over a set union of their elements, returning
      * {@link net.adamcin.jardelta.core.Action#ADDED} for !contains-contains,
      * {@link net.adamcin.jardelta.core.Action#REMOVED} for contains-!contains, and delegating to the provided
@@ -208,6 +288,27 @@ public final class GenericDiff {
     /**
      * Compare both collections by iterating over a set union of their elements, returning
      * {@link net.adamcin.jardelta.core.Action#ADDED} for notContained-contained,
+     * {@link net.adamcin.jardelta.core.Action#REMOVED} for contained-notContained, and returning
+     * {@link java.util.stream.Stream#empty()} for contained-contained.
+     * NOTE: uses {@link java.util.TreeSet#TreeSet()} for aggregate set operations.
+     *
+     * @param diffBuilderFactory a diff builder factory function
+     * @param bothSets           both values
+     * @param <T>                the type parameter of the Collection values
+     * @return the diff stream
+     * @see #ofAllInEitherSet(java.util.function.Function, net.adamcin.streamsupport.Both, java.util.function.Supplier,
+     * java.util.function.Function)
+     */
+    @NotNull
+    public static <T> Stream<Diff> ofAllInEitherSet(
+            @NotNull Function<? super T, Diff.Builder> diffBuilderFactory,
+            @NotNull Both<? extends Collection<T>> bothSets) {
+        return ofAllInEitherSet(diffBuilderFactory, bothSets, (elements) -> Stream.empty());
+    }
+
+    /**
+     * Compare both collections by iterating over a set union of their elements, returning
+     * {@link net.adamcin.jardelta.core.Action#ADDED} for notContained-contained,
      * {@link net.adamcin.jardelta.core.Action#REMOVED} for contained-notContained, and delegating to the provided
      * {@code ifIntersection} function for contained-contained.
      *
@@ -236,6 +337,7 @@ public final class GenericDiff {
      * {@code ifIntersection} function for contained-contained.
      * NOTE: uses {@link java.util.TreeSet#TreeSet()} for aggregate set operations.
      *
+     * @param diffBuilder    a diff builder
      * @param bothSets       both values
      * @param ifIntersection delegate function for intersecting elements
      * @param <T>            the type parameter of the Collection values
@@ -251,6 +353,28 @@ public final class GenericDiff {
             @NotNull Both<? extends Collection<T>> bothSets,
             @NotNull Function<T, Stream<Diff>> ifIntersection) {
         return ofAllInEitherSet(element -> diffBuilder, bothSets, ifIntersection);
+    }
+
+    /**
+     * Compare both collections by iterating over a set union of their elements, returning
+     * {@link net.adamcin.jardelta.core.Action#ADDED} for notContained-contained,
+     * {@link net.adamcin.jardelta.core.Action#REMOVED} for contained-notContained, and returning
+     * {@link java.util.stream.Stream#empty()} for contained-contained.
+     * NOTE: uses {@link java.util.TreeSet#TreeSet()} for aggregate set operations.
+     *
+     * @param diffBuilder a diff builder
+     * @param bothSets    both values
+     * @param <T>         the type parameter of the Collection values
+     * @return the diff stream
+     * @see #ofAllInEitherSet(net.adamcin.jardelta.core.Diff.Builder, net.adamcin.streamsupport.Both,
+     * java.util.function.Supplier, java.util.function.Function)
+     * @see #ofAllInEitherSet(java.util.function.Function, net.adamcin.streamsupport.Both)
+     */
+    @NotNull
+    public static <T> Stream<Diff> ofAllInEitherSet(
+            @NotNull Diff.Builder diffBuilder,
+            @NotNull Both<? extends Collection<T>> bothSets) {
+        return ofAllInEitherSet(element -> diffBuilder, bothSets, (elements) -> Stream.empty());
     }
 
     /**
@@ -304,6 +428,29 @@ public final class GenericDiff {
     /**
      * Compare both maps by iterating over a set union of their keys, returning
      * {@link net.adamcin.jardelta.core.Action#ADDED} for !containsKey-containsKey,
+     * {@link net.adamcin.jardelta.core.Action#REMOVED} for containsKey-!containsKey, and returning
+     * {@link java.util.stream.Stream#empty()} for containsKey-containsKey.
+     * NOTE: uses {@link java.util.TreeSet#TreeSet()} for aggregate set operations.
+     *
+     * @param diffBuilderFactory a diff builder factory function
+     * @param bothMaps           both values
+     * @param <K>                the key type parameter of the Map
+     * @param <V>                the value type parameter of the Map
+     * @return the diff stream
+     * @see #ofAllInEitherMap(net.adamcin.jardelta.core.Diff.Builder, net.adamcin.streamsupport.Both,
+     * java.util.function.Supplier, java.util.function.BiFunction)
+     */
+    @NotNull
+    public static <K, V> Stream<Diff> ofAllInEitherMap(
+            @NotNull Function<? super K, Diff.Builder> diffBuilderFactory,
+            @NotNull Both<? extends Map<K, V>> bothMaps) {
+        return ofAllInEitherMap(diffBuilderFactory, bothMaps,
+                (key, bothValues) -> ofOptionals(diffBuilderFactory.apply(key), bothValues));
+    }
+
+    /**
+     * Compare both maps by iterating over a set union of their keys, returning
+     * {@link net.adamcin.jardelta.core.Action#ADDED} for !containsKey-containsKey,
      * {@link net.adamcin.jardelta.core.Action#REMOVED} for containsKey-!containsKey, and delegating to the provided
      * {@code ifIntersection} function for containsKey-containsKey.
      *
@@ -350,5 +497,30 @@ public final class GenericDiff {
             @NotNull Both<? extends Map<K, V>> bothMaps,
             @NotNull BiFunction<K, Both<Optional<V>>, Stream<Diff>> ifIntersection) {
         return ofAllInEitherMap(key -> diffBuilder, bothMaps, ifIntersection);
+    }
+
+
+    /**
+     * Compare both maps by iterating over a set union of their keys, returning
+     * {@link net.adamcin.jardelta.core.Action#ADDED} for !containsKey-containsKey,
+     * {@link net.adamcin.jardelta.core.Action#REMOVED} for containsKey-!containsKey, and returning
+     * {@link java.util.stream.Stream#empty()} for containsKey-containsKey.
+     * NOTE: uses {@link java.util.TreeSet#TreeSet()} for aggregate set operations.
+     *
+     * @param diffBuilder    a diff builder
+     * @param bothMaps       both values
+     * @param <K>            the key type parameter of the Map
+     * @param <V>            the value type parameter of the Map
+     * @return the diff stream
+     * @see #ofAllInEitherMap(net.adamcin.jardelta.core.Diff.Builder, net.adamcin.streamsupport.Both,
+     * java.util.function.Supplier, java.util.function.BiFunction)
+     * @see #ofAllInEitherMap(java.util.function.Function, net.adamcin.streamsupport.Both,
+     * java.util.function.BiFunction)
+     */
+    @NotNull
+    public static <K, V> Stream<Diff> ofAllInEitherMap(
+            @NotNull Diff.Builder diffBuilder,
+            @NotNull Both<? extends Map<K, V>> bothMaps) {
+        return ofAllInEitherMap(key -> diffBuilder, bothMaps);
     }
 }

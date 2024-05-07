@@ -31,27 +31,24 @@ public class PlanIT {
     @Test
     void bundleScrAndDsResources() {
         final Context context = Context.builder()
-                .jars(Jars.of(ExampleJars.BUNDLE_SCR.getJarUrl(), ExampleJars.BUNDLE_DS.getJarUrl())
-                        .getOrThrow()).build();
-        final Diffs diffs = new Plan().execute(context);
+                .jars(Jars.from(ExampleJars.BUNDLE_SCR.getJarUrl(), ExampleJars.BUNDLE_DS.getJarUrl())).build();
+        final Diffs diffs = new Plan().execute(context).getResults();
         assertFalse(diffs.isEmpty());
     }
 
     @Test
     void bundleScrAndBndDsResources() {
         final Context context = Context.builder()
-                .jars(Jars.of(ExampleJars.BUNDLE_SCR.getJarUrl(), ExampleJars.BND_DS.getJarUrl())
-                        .getOrThrow()).build();
-        final Diffs diffs = new Plan().execute(context);
+                .jars(Jars.from(ExampleJars.BUNDLE_SCR.getJarUrl(), ExampleJars.BND_DS.getJarUrl())).build();
+        final Diffs diffs = new Plan().execute(context).getResults();
         assertFalse(diffs.isEmpty());
     }
 
     @Test
     void bundleDsAndBndDsResources() {
         final Context context = Context.builder()
-                .jars(Jars.of(ExampleJars.BUNDLE_DS.getJarUrl(), ExampleJars.BND_DS.getJarUrl())
-                        .getOrThrow()).build();
-        final Diffs diffs = new Plan().execute(context);
+                .jars(Jars.from(ExampleJars.BUNDLE_DS.getJarUrl(), ExampleJars.BND_DS.getJarUrl())).build();
+        final Diffs diffs = new Plan().execute(context).getResults();
         assertFalse(diffs.isEmpty());
     }
 }

@@ -16,25 +16,24 @@
 
 package net.adamcin.jardelta.core;
 
+import lombok.Builder;
+import lombok.Data;
+import lombok.NonNull;
+import lombok.ToString;
 
-import lombok.Getter;
-import org.jetbrains.annotations.NotNull;
-
-import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 
-@Getter
-public class RefinedDiff {
-    public static final RefinedDiff EMPTY = new RefinedDiff(Collections.emptyList(), Diffs.EMPTY);
-    private final Collection<Diff> superseded;
-    private final Diffs diffs;
-
-    public RefinedDiff(@NotNull Collection<Diff> superseded, @NotNull Diffs diffs) {
-        this.superseded = superseded;
-        this.diffs = diffs;
-    }
-
-    public boolean isEmpty() {
-        return superseded.isEmpty() && diffs.isEmpty();
-    }
+@Builder
+@Data
+public final class Delta {
+    @NonNull
+    @Builder.Default
+    private Diffs results = Diffs.EMPTY;
+    @NonNull
+    @Builder.Default
+    private Diffs initial = Diffs.EMPTY;
+    @NonNull
+    @Builder.Default
+    private List<Refinement> refinements = Collections.emptyList();
 }

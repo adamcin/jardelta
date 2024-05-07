@@ -16,13 +16,13 @@
 
 package net.adamcin.jardelta.core.osgi.ocd;
 
-import net.adamcin.jardelta.core.Diffed;
+import net.adamcin.jardelta.core.Element;
 import net.adamcin.jardelta.core.Name;
 import net.adamcin.streamsupport.Both;
 import org.jetbrains.annotations.NotNull;
 import org.osgi.service.metatype.ObjectClassDefinition;
 
-public class MetaTypeOCD implements Diffed<ObjectClassDefinition> {
+public class MetaTypeOCD implements Element<ObjectClassDefinition> {
     private final Name parentName;
     private final Both<ObjectClassDefinition> values;
 
@@ -32,7 +32,7 @@ public class MetaTypeOCD implements Diffed<ObjectClassDefinition> {
     }
 
     @Override
-    public @NotNull Name getName() {
+    public @NotNull Name name() {
         return parentName;
     }
 

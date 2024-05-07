@@ -57,7 +57,7 @@ public final class Diffs {
     }
 
     @NotNull
-    public Diffs refinedBy(@NotNull RefinedDiff refinements) {
+    public Diffs refinedBy(@NotNull Refinement refinements) {
         if (refinements.isEmpty()) {
             return this;
         } else {

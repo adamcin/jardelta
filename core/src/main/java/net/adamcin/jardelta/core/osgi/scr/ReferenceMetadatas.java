@@ -16,35 +16,28 @@
 
 package net.adamcin.jardelta.core.osgi.scr;
 
-import net.adamcin.jardelta.core.Diffed;
+import net.adamcin.jardelta.core.Element;
 import net.adamcin.jardelta.core.Name;
 import net.adamcin.streamsupport.Both;
-import org.apache.felix.scr.impl.metadata.ComponentMetadata;
+import org.apache.felix.scr.impl.metadata.ReferenceMetadata;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.List;
+public class ReferenceMetadatas implements Element<ReferenceMetadata> {
+    private final Name name;
+    private final Both<ReferenceMetadata> values;
 
-public class ScrDescriptors implements Diffed<List<ComponentMetadata>> {
-    private final String componentName;
-    private final Both<List<ComponentMetadata>> values;
-
-    public ScrDescriptors(@NotNull String componentName, @NotNull Both<List<ComponentMetadata>> values) {
-        this.componentName = componentName;
+    public ReferenceMetadatas(@NotNull Name name, @NotNull Both<ReferenceMetadata> values) {
+        this.name = name;
         this.values = values;
     }
 
-    @NotNull
-    public String getComponentName() {
-        return componentName;
+    @Override
+    public @NotNull Name name() {
+        return name;
     }
 
     @Override
-    public @NotNull Name getName() {
-        return ScrRefinementStrategy.NAME_PREFIX.append(componentName);
-    }
-
-    @Override
-    public @NotNull Both<List<ComponentMetadata>> both() {
+    public @NotNull Both<ReferenceMetadata> both() {
         return values;
     }
 }

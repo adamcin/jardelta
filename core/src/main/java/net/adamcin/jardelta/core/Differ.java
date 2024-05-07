@@ -21,7 +21,7 @@ import org.jetbrains.annotations.NotNull;
 import java.util.stream.Stream;
 
 @FunctionalInterface
-public interface Differ<T extends Diffed<?>> {
+public interface Differ<T extends Element<?>> {
 
     @NotNull
     Stream<Diff> diff(@NotNull T diffed);

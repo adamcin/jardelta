@@ -44,6 +44,7 @@
         <module>parent</module>
         <module>tests</module>
         <module>core</module>
+        <module>maven-plugin</module>
     </modules>
 </project>
 

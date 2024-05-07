@@ -62,13 +62,13 @@ import static net.adamcin.streamsupport.Fun.uncheck0;
  * through OSGi-specified interfaces.
  */
 final class BundleFacade implements Bundle {
-    private final JarPath jar;
+    private final OpenJar jar;
     private final Manifest manifest;
     private final Attributes mainAttributes;
     private final MockBundle mockBundle;
     private static final BundleContext mockBundleContext = MockOsgi.newBundleContext();
     private final Map<String, Properties> localeCache;
-    public BundleFacade(@NotNull JarPath jar) {
+    public BundleFacade(@NotNull OpenJar jar) {
         this.jar = jar;
         this.manifest = uncheck0(jar::getManifest).get();
         this.mainAttributes = Optional.ofNullable(manifest)
@@ -221,7 +221,7 @@ final class BundleFacade implements Bundle {
 
     Predicate<Name> getParentPathPredicate(@NotNull String path, boolean recurse) {
         final Name pathName = bundlePathToName(path);
-        if (pathName.isEmpty()) {
+        if (pathName.isRoot()) {
             return recurse ? name -> true : name -> name.getParent() == null;
         } else {
             return recurse
@@ -270,7 +270,7 @@ final class BundleFacade implements Bundle {
         // for tests see https://github.com/apache/felix-dev/blob/b6fff2adcc1afee039f0f60713032363144ad0fa/framework/src/test/java/org/apache/felix/framework/ResourceLoadingTest.java
         return Enumerations.enumeration(internalGetEntryPaths(path, recurse)
                 .filter(name -> SimpleFilter.compareSubstring(fileFilter,
-                        bundlePathToName(name).getFileName().toString()))
+                        bundlePathToName(name).getSegment()))
                 .map(jar::urlFor).spliterator());
     }
 

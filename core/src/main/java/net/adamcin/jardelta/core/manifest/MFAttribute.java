@@ -17,7 +17,7 @@
 package net.adamcin.jardelta.core.manifest;
 
 import net.adamcin.jardelta.core.Name;
-import net.adamcin.jardelta.core.Diffed;
+import net.adamcin.jardelta.core.Element;
 import net.adamcin.jardelta.core.Differ;
 import net.adamcin.streamsupport.Both;
 import org.jetbrains.annotations.NotNull;
@@ -26,7 +26,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.jar.Attributes;
 
-public class MFAttribute implements Diffed<Optional<String>> {
+public class MFAttribute implements Element<Optional<String>> {
     private final @NotNull Name name;
     private final @NotNull Differ<MFAttribute> differ;
     private final @NotNull Both<Optional<String>> values;
@@ -40,7 +40,7 @@ public class MFAttribute implements Diffed<Optional<String>> {
     }
 
     @Override
-    public @NotNull Name getName() {
+    public @NotNull Name name() {
         return name;
     }
 

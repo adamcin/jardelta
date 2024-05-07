@@ -29,8 +29,8 @@ public interface RefinementStrategy {
      *
      * @param context the diff context provided to {@link Plan#execute(Context)}
      * @param diffs   the cumulative result of prior diff phases
-     * @return a {@link RefinedDiff}
+     * @return a {@link Refinement}
      */
     @NotNull
-    RefinedDiff refine(@NotNull Context context, @NotNull Diffs diffs);
+    Refinement refine(@NotNull Context context, @NotNull Diffs diffs, @NotNull Element<OpenJar> openJars) throws Exception;
 }

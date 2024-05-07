@@ -17,11 +17,13 @@
 package net.adamcin.jardelta.core.mavenmeta;
 
 import net.adamcin.jardelta.core.Context;
-import net.adamcin.jardelta.core.Name;
-import net.adamcin.jardelta.core.entry.JarEntryDiffer;
 import net.adamcin.jardelta.core.Diffs;
-import net.adamcin.jardelta.core.RefinedDiff;
+import net.adamcin.jardelta.core.Element;
+import net.adamcin.jardelta.core.Name;
+import net.adamcin.jardelta.core.OpenJar;
+import net.adamcin.jardelta.core.Refinement;
 import net.adamcin.jardelta.core.RefinementStrategy;
+import net.adamcin.jardelta.core.entry.JarEntryDiffer;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.stream.Collectors;
@@ -33,8 +35,10 @@ public class MavenMetaRefinementStrategy implements RefinementStrategy {
     public static final Name NAME_PREFIX = Name.of("META-INF/maven");
 
     @Override
-    public @NotNull RefinedDiff refine(@NotNull Context context, @NotNull Diffs diffs) {
-        return new RefinedDiff(diffs.stream().filter(diff -> JarEntryDiffer.DIFF_KIND.equals(diff.getKind())
+    public @NotNull Refinement refine(@NotNull Context context,
+                                      @NotNull Diffs diffs,
+                                      @NotNull Element<OpenJar> openJars) throws Exception {
+        return new Refinement(diffs.stream().filter(diff -> JarEntryDiffer.DIFF_KIND.equals(diff.getKind())
                         && diff.getName().startsWith(NAME_PREFIX)
                         && (diff.getName().endsWith(Name.of("pom.xml"))
                         || diff.getName().endsWith(Name.of("pom.properties"))))

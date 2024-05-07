@@ -16,40 +16,69 @@
 
 package net.adamcin.jardelta.core;
 
+import net.adamcin.jardelta.core.entry.JarEntryMetadata;
 import net.adamcin.streamsupport.Both;
+import net.adamcin.streamsupport.Fun;
 import net.adamcin.streamsupport.Result;
+import net.adamcin.streamsupport.throwing.ThrowingFunction;
 import org.jetbrains.annotations.NotNull;
 
+import java.io.File;
+import java.net.URI;
 import java.net.URL;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Map;
+import java.util.TreeMap;
 
-public class Jars implements Diffed<JarPath> {
-    private final Name name;
-    private final Both<JarPath> values;
+public final class Jars {
+    private final Both<String> names;
+    private final Both<Path> values;
+    private final Both<Map<Name, Result<JarEntryMetadata>>> resourceCaches = Both.of(new TreeMap<>(), new TreeMap<>());
 
-    public Jars(@NotNull Both<JarPath> values) {
-        this(Name.of(""), values);
+    public Jars(@NotNull Both<Path> values) {
+        this(values.map(Path::toString), values);
     }
 
-    public Jars(@NotNull Name name, @NotNull Both<JarPath> values) {
-        this.name = name;
+    public Jars(@NotNull Both<String> names, @NotNull Both<Path> values) {
+        this.names = names;
         this.values = values;
     }
 
-    @Override
-    public @NotNull Name getName() {
-        return name;
+    public <T> Result<T> using(@NotNull ThrowingFunction<Element<OpenJar>, ? extends T> usingFn) {
+        return Fun.result0(() -> {
+            try (OpenJar leftJar = OpenJar.fromFile(names.left(), values.left(), resourceCaches.left());
+                 OpenJar rightJar = OpenJar.fromFile(names.right(), values.right(), resourceCaches.right())) {
+                final Both<OpenJar> openJars = Both.of(leftJar, rightJar);
+                return (T) usingFn.tryApply(new Element<OpenJar>() {
+                    @Override
+                    public @NotNull Name name() {
+                        return Name.ROOT;
+                    }
+
+                    @Override
+                    public @NotNull Both<OpenJar> both() {
+                        return openJars;
+                    }
+                });
+            }
+        }).get();
     }
 
-    @Override
-    public @NotNull Both<JarPath> both() {
+    public @NotNull Both<Path> both() {
         return values;
     }
 
-    public boolean mixedPackaging() {
-        return both().map(JarPath::isBundle).testBoth((left, right) -> !left || !right);
+    public static Jars from(@NotNull URL left, @NotNull URL right) {
+        return new Jars(Both.of(left, right).map(Fun.uncheck1(URL::toURI)).map(Paths::get));
     }
 
-    public static Result<Jars> of(@NotNull URL left, @NotNull URL right) {
-        return Both.ofResults(Both.of(left, right).map(JarPath::fromURL)).map(Jars::new);
+    public static Jars from(@NotNull Path left, @NotNull Path right) {
+        return new Jars(Both.of(left, right));
     }
+
+    public static Jars from(@NotNull File left, @NotNull File right) {
+        return new Jars(Both.of(left, right).map(File::toPath));
+    }
+
 }

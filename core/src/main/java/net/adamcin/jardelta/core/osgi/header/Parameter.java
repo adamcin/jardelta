@@ -16,14 +16,14 @@
 
 package net.adamcin.jardelta.core.osgi.header;
 
-import net.adamcin.jardelta.core.Diffed;
+import net.adamcin.jardelta.core.Element;
 import net.adamcin.jardelta.core.Name;
 import net.adamcin.streamsupport.Both;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Optional;
 
-public class Parameter implements Diffed<Optional<ParameterList>> {
+public class Parameter implements Element<Optional<ParameterList>> {
 
     private final Name parentName;
     private final String key;
@@ -38,8 +38,8 @@ public class Parameter implements Diffed<Optional<ParameterList>> {
     }
 
     @Override
-    public @NotNull Name getName() {
-        return parentName.append(key);
+    public @NotNull Name name() {
+        return parentName.appendSegment(key);
     }
 
     @Override

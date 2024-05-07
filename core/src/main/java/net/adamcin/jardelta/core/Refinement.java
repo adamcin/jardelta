@@ -16,28 +16,25 @@
 
 package net.adamcin.jardelta.core;
 
-import net.adamcin.streamsupport.Both;
+
+import lombok.Getter;
 import org.jetbrains.annotations.NotNull;
 
-/**
- * Represents a container of diffed values.
- *
- * @param <V> a generic value type that should be reifed by each concrete implementation
- */
-public interface Diffed<V> {
-    /**
-     * Get the name of the resource within the jars being compared.
-     *
-     * @return the resource name
-     */
-    @NotNull
-    Name getName();
+import java.util.Collection;
+import java.util.Collections;
 
-    /**
-     * The diffed values.
-     *
-     * @return a {@link net.adamcin.streamsupport.Both} containing the diffed values
-     */
-    @NotNull
-    Both<V> both();
+@Getter
+public class Refinement {
+    public static final Refinement EMPTY = new Refinement(Collections.emptyList(), Diffs.EMPTY);
+    private final Collection<Diff> superseded;
+    private final Diffs diffs;
+
+    public Refinement(@NotNull Collection<Diff> superseded, @NotNull Diffs diffs) {
+        this.superseded = superseded;
+        this.diffs = diffs;
+    }
+
+    public boolean isEmpty() {
+        return superseded.isEmpty() && diffs.isEmpty();
+    }
 }

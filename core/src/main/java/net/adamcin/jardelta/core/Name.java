@@ -22,56 +22,137 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.Serializable;
+import java.text.ParseException;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.Objects;
 import java.util.Optional;
-import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
- * A JAR resource/entry name represented by a marker type wrapping a string. A name representing a directory entry ends
- * with a "/".
+ * A hierarchical path name capable of representing JAR resource/entry names, as well as virtual names with
  */
 @EqualsAndHashCode
 public final class Name implements Serializable, Comparable<Name> {
+    public static final Name ROOT = new Name("");
+    static final String ERROR_PREFIX_UNEXPECTED_RIGHT_BRACKET = "Name segment contains unexpected '}' bracket: ";
+    static final String ERROR_PREFIX_UNTERMINATED_LEFT_BRACKET = "Name segment contains unterminated '{' bracket: ";
 
     /**
-     * A normalized path contains no double-slashes and no ./ or ../ path segments.
+     * Return a {@link Name} for the provided path value.
+     *
+     * @param value a resource name string
+     * @return a {@link Name} for the provided value
+     * @throws java.lang.IllegalArgumentException if provided value is not acceptable as a name
      */
-    private static final Pattern ILLEGAL_SEGMENTS = Pattern.compile("((^|/)\\.\\.?(/|$)|(//))");
+    @NotNull
+    public static Name of(@NotNull String value) {
+        return of(value, value, 0);
+    }
+
+    /**
+     * Return a {@link Name} for the provided path segment. It will be wrapped with curly braces if it contains a
+     * possibly-delimiting slash.
+     *
+     * @param segment a resource name segment
+     * @return a {@link Name} for the provided segment
+     * @throws java.lang.IllegalArgumentException if provided value is not acceptable as a name
+     */
+    @NotNull
+    public static Name ofSegment(@NotNull String segment) {
+        if (segment.isEmpty()) {
+            return ROOT;
+        }
+        return findUnbracketedSlash(segment, segment, 0) >= 0
+                ? Name.of("{" + segment + "}")
+                : Name.of(segment);
+    }
+
+    /**
+     * Return a {@link Name} for the provided path value.
+     *
+     * @param value a resource name string
+     * @return a {@link Name} for the provided value
+     * @throws java.lang.IllegalArgumentException if provided value is not acceptable as a name
+     */
+    static Name of(@NotNull String value,
+                   final @NotNull String debugOriginal,
+                   final int debugStart) {
+        if (value.isEmpty()) {
+            return ROOT;
+        }
+        if (value.startsWith("/")) {
+            return of(value.substring(1), debugOriginal, debugStart + 1);
+        }
+        int slash = findUnbracketedSlash(value, debugOriginal, debugStart);
+        if (slash >= 0) {
+            return of(value.substring(0, slash), debugOriginal, debugStart)
+                    .append(of(value.substring(slash + 1), debugOriginal, debugStart + slash + 1));
+        }
+        return new Name(value);
+    }
+
+    private final Name parent;
 
     @NonNull
-    private final String value;
+    private final String segment;
 
-    private Name(@NotNull String value) {
-        this.value = value.endsWith("/") ? value.substring(0, value.length() - 1) : value;
+    private Name(@NotNull String segment) {
+        this(null, segment);
+    }
+
+    private Name(@Nullable Name parent, @NotNull String segment) {
+        // empty segments are not allowed to have parents, and root is not allowed to be a parent
+        assert parent == null || !segment.isEmpty() && !parent.isRoot();
+        this.parent = parent;
+        this.segment = segment;
     }
 
     @Nullable
     public Name getParent() {
-        final int lastSlash = value.lastIndexOf("/");
-        if (lastSlash >= 0) {
-            return new Name(value.substring(0, lastSlash));
-        }
-        // do not return an empty name
-        return null;
+        return this.parent;
     }
 
     @NotNull
-    public Name getFileName() {
-        final int lastSlash = value.lastIndexOf("/");
-        if (lastSlash >= 0) {
-            return new Name(value.substring(lastSlash + 1));
-        }
-        // do not return an empty name
-        return this;
+    public String getSegment() {
+        return segment;
+    }
+
+    @NotNull
+    public Stream<String> segments() {
+        return stream().map(Name::getSegment);
+    }
+
+    @NotNull
+    public Stream<Name> stream() {
+        return Stream.concat(Stream.ofNullable(parent).flatMap(Name::stream), Stream.of(this));
     }
 
     @NotNull
     public Name append(@NotNull Name child) {
-        return this.isEmpty() ? child : Name.of(value + "/" + child.value);
+        if (this.isRoot()) {
+            return child;
+        } else if (child.isRoot()) {
+            return this;
+        } else {
+            return new Name(Optional.ofNullable(child.getParent())
+                    .map(this::append)
+                    .orElse(this), child.segment);
+        }
     }
 
+    /**
+     * Append a child name with the given value. It will be wrapped with curly braces if it contains a possibly-delimiting
+     * slash.
+     *
+     * @param childSegment the child name segment
+     * @return a {@link net.adamcin.jardelta.core.Name} whose parent is this
+     * @see #ofSegment(String)
+     */
     @NotNull
-    public Name append(@NotNull String childValue) {
-        return Name.of(this.isEmpty() ? childValue : value + "/" + childValue);
+    public Name appendSegment(@NotNull String childSegment) {
+        return append(ofSegment(childSegment));
     }
 
     /**
@@ -81,8 +162,21 @@ public final class Name implements Serializable, Comparable<Name> {
      *
      * @return true if the name has no parent, and its filename is the empty string
      */
-    public boolean isEmpty() {
-        return value.isEmpty();
+    public boolean isRoot() {
+        return parent == null && segment.isEmpty();
+    }
+
+    /**
+     * Get the depth of this name segment. A segment with no parent has a depth of 0.
+     *
+     * @return depth of this name
+     */
+    public int getDepth() {
+        if (parent == null) {
+            return 0;
+        } else {
+            return parent.getDepth() + 1;
+        }
     }
 
     /**
@@ -100,13 +194,13 @@ public final class Name implements Serializable, Comparable<Name> {
     }
 
     /**
-     * Tests if this name starts with the given name using a pure string comparison.
+     * Tests if this name segment starts with the given name using a pure string comparison.
      *
-     * @param otherName the candidate ancestor path name
+     * @param pattern the candidate ancestor path name
      * @return true if {@code otherName} is a string prefix for this name as a string
      */
-    public boolean startsWith(@NotNull String otherName) {
-        return this.value.startsWith(otherName);
+    public boolean startsWith(@NotNull String pattern) {
+        return this.segment.startsWith(pattern);
     }
 
     /**
@@ -135,43 +229,81 @@ public final class Name implements Serializable, Comparable<Name> {
     /**
      * Tests if this name ends with the given name using a pure string comparison.
      *
-     * @param otherName the candidate suffix path name
+     * @param pattern the candidate suffix path name
      * @return true if {@code otherName} is a string suffix for this name as a string
      */
-    public boolean endsWith(@NotNull String otherName) {
-        return this.value.endsWith(otherName);
+    public boolean endsWith(@NotNull String pattern) {
+        return this.segment.endsWith(pattern);
     }
 
     @Override
-    public int compareTo(@NotNull Name other) {
-        return this.value.compareTo(other.value);
+    public int compareTo(@NotNull Name that) {
+        if (this.parent != null || that.parent != null) {
+            if (this.getDepth() < that.getDepth()) {
+                int parentResult = this.compareTo(Objects.requireNonNull(that.parent));
+                return parentResult == 0 ? -1 : parentResult;
+            } else if (this.getDepth() > that.getDepth()) {
+                int parentResult = Objects.requireNonNull(this.parent).compareTo(that);
+                return parentResult == 0 ? 1 : parentResult;
+            } else {
+                int parentResult = this.parent.compareTo(that.parent);
+                if (parentResult != 0) {
+                    return parentResult;
+                }
+            }
+        }
+        return this.segment.compareTo(that.segment);
     }
 
     @Override
     public String toString() {
-        return value;
+        if (parent == null) {
+            return segment;
+        }
+        return segments().collect(Collectors.joining("/"));
     }
 
     /**
-     * Return a {@link Name} for the provided normalized, relative path value. A value is
-     * normalized when it has no empty path segments (double-slash) and no ./ or ../ path segments. A name may not
-     * contain the "!/" string representing a "jar:" url entry name delimiter.
+     * Finds the first slash in the provided {@code value} that is not surrounded by balanced curly brackets.
      *
-     * @param value a resource name string
-     * @return a {@link Name} for the provided value
-     * @throws java.lang.IllegalArgumentException if provided value is not relative or normalized
+     * @param value         the haystack
+     * @param debugOriginal the original input string for debugging, of which {@code value} is a substring
+     * @param debugStart    the index in the input string where {@code value} begins errorOffset relative to the
+     *                      original input string
+     * @return the index of the first unbracketed slash, or -1 if such a slash is not found
+     * @throws java.lang.IllegalArgumentException if a left-hand bracket is unterminated, or if a right-hand bracket is unexpected
      */
-    @NotNull
-    public static Name of(@NotNull String value) {
-        if ("/".equals(value)) {
-            // special case
-            return new Name("");
-        } else if (ILLEGAL_SEGMENTS.matcher(value).find()) {
-            throw new IllegalArgumentException("Name must be in normalized form '" + value + "'");
-        } else if (value.startsWith("/") || value.contains("!/")) {
-            throw new IllegalArgumentException("Name must be relative '" + value + "'");
+    static int findUnbracketedSlash(final @NotNull String value,
+                                    final @NotNull String debugOriginal,
+                                    final int debugStart) {
+        assert debugOriginal.isEmpty()
+                || debugOriginal.length() > debugStart && debugOriginal.substring(debugStart).startsWith(value);
+        final Deque<Integer> stack = new ArrayDeque<>();
+        final char[] chars = value.toCharArray();
+        for (int i = 0; i < chars.length; i++) {
+            switch (chars[i]) {
+                case '{':
+                    stack.push(i);
+                    break;
+                case '}':
+                    if (stack.isEmpty()) {
+                        final String message = ERROR_PREFIX_UNEXPECTED_RIGHT_BRACKET + "'" + debugOriginal + "'";
+                        throw new IllegalArgumentException(message, new ParseException(message, debugStart + i));
+                    } else {
+                        stack.pop();
+                    }
+                    break;
+                case '/':
+                    if (stack.isEmpty()) {
+                        return i;
+                    }
+            }
+        }
+        if (stack.isEmpty()) {
+            return -1;
         } else {
-            return new Name(value);
+            final String message = ERROR_PREFIX_UNTERMINATED_LEFT_BRACKET + "'" + debugOriginal + "'";
+            throw new IllegalArgumentException(message, new ParseException(message, debugStart + stack.peek()));
         }
     }
 }

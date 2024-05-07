@@ -19,6 +19,7 @@ package net.adamcin.jardelta.core;
 import lombok.EqualsAndHashCode;
 import lombok.NonNull;
 import lombok.ToString;
+import net.adamcin.streamsupport.Result;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -79,7 +80,7 @@ public class Diff implements Comparable<Diff> {
     public static final class Builder {
 
         private final String kind;
-        private Name name;
+        private Name name = Name.ROOT;
 
         public Builder(@NotNull String kind) {
             this.kind = kind;
@@ -88,6 +89,11 @@ public class Diff implements Comparable<Diff> {
         public Builder named(@NotNull Name name) {
             this.name = name;
             return this;
+        }
+
+        @NotNull
+        public Name name() {
+            return this.name;
         }
 
         @NotNull
@@ -111,18 +117,18 @@ public class Diff implements Comparable<Diff> {
         }
 
         @NotNull
-        public Diff errLeft() {
+        public Diff errLeft(Result<?> failure) {
             return build(Action.ERR_LEFT);
         }
 
         @NotNull
-        public Diff errRight() {
+        public Diff errRight(Result<?> failure) {
             return build(Action.ERR_RIGHT);
         }
 
         @NotNull
         public Builder child(@NotNull String childName) {
-            return new Builder(this.kind).named(name != null ? name.append(childName) : Name.of(childName));
+            return new Builder(this.kind).named(name.appendSegment(childName));
         }
     }
 

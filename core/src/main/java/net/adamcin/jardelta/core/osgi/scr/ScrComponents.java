@@ -16,13 +16,13 @@
 
 package net.adamcin.jardelta.core.osgi.scr;
 
-import net.adamcin.jardelta.core.Diffed;
+import net.adamcin.jardelta.core.Element;
 import net.adamcin.jardelta.core.Name;
 import net.adamcin.streamsupport.Both;
 import org.apache.felix.scr.impl.metadata.ComponentMetadata;
 import org.jetbrains.annotations.NotNull;
 
-public class ScrComponents implements Diffed<ComponentMetadata> {
+public class ScrComponents implements Element<ComponentMetadata> {
     private final String componentName;
     private final Both<ComponentMetadata> values;
 
@@ -37,8 +37,8 @@ public class ScrComponents implements Diffed<ComponentMetadata> {
     }
 
     @Override
-    public @NotNull Name getName() {
-        return ScrRefinementStrategy.NAME_PREFIX.append(componentName);
+    public @NotNull Name name() {
+        return ScrRefinementStrategy.NAME_PREFIX.appendSegment(componentName);
     }
 
     @Override

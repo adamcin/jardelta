@@ -19,7 +19,7 @@ package net.adamcin.jardelta.core.osgi.header;
 import aQute.bnd.header.Parameters;
 import net.adamcin.jardelta.core.Diff;
 import net.adamcin.jardelta.core.Differ;
-import net.adamcin.jardelta.core.util.GenericDiff;
+import net.adamcin.jardelta.core.util.GenericDiffers;
 import net.adamcin.streamsupport.Both;
 import net.adamcin.streamsupport.Fun;
 import org.jetbrains.annotations.NotNull;
@@ -34,8 +34,8 @@ public class InstructionsDiffer implements Differ<Instructions> {
 
     @Override
     public @NotNull Stream<Diff> diff(@NotNull Instructions diffed) {
-        final Diff.Builder diffBuilder = Diff.builder(DIFF_KIND).named(diffed.getName());
-        return GenericDiff.ofOptionals(diffBuilder, diffed.both(), values -> diffParameters(diffed, values));
+        final Diff.Builder diffBuilder = Diff.builder(DIFF_KIND).named(diffed.name());
+        return GenericDiffers.ofOptionals(diffBuilder, diffed.both(), values -> diffParameters(diffed, values));
     }
 
     @NotNull Stream<Diff> diffParameters(@NotNull Instructions diffed, @NotNull Both<Parameters> bothParameters) {
@@ -45,7 +45,7 @@ public class InstructionsDiffer implements Differ<Instructions> {
 
         final ParameterDiffer differ = new ParameterDiffer();
         return keys.stream()
-                .map(key -> new Parameter(diffed.getName(), key, bothParameters.map(map ->
+                .map(key -> new Parameter(diffed.name(), key, bothParameters.map(map ->
                         Optional.ofNullable(ParameterList.from(key, map)))))
                 .filter(Parameter::isDiff)
                 .flatMap(differ::diff);

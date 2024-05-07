@@ -17,7 +17,7 @@
 package net.adamcin.jardelta.core.manifest;
 
 import net.adamcin.jardelta.core.Name;
-import net.adamcin.jardelta.core.Diffed;
+import net.adamcin.jardelta.core.Element;
 import net.adamcin.streamsupport.Both;
 import org.jetbrains.annotations.NotNull;
 
@@ -25,7 +25,7 @@ import java.util.Optional;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 
-public class Manifests implements Diffed<Optional<Manifest>> {
+public class Manifests implements Element<Optional<Manifest>> {
     public static final Name NAME_MANIFEST = Name.of(JarFile.MANIFEST_NAME);
 
     private final Both<Optional<Manifest>> values;
@@ -35,7 +35,7 @@ public class Manifests implements Diffed<Optional<Manifest>> {
     }
 
     @Override
-    public @NotNull Name getName() {
+    public @NotNull Name name() {
         return NAME_MANIFEST;
     }
 

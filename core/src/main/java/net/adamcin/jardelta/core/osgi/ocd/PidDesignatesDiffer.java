@@ -18,7 +18,7 @@ package net.adamcin.jardelta.core.osgi.ocd;
 
 import net.adamcin.jardelta.core.Diff;
 import net.adamcin.jardelta.core.Differ;
-import net.adamcin.jardelta.core.util.GenericDiff;
+import net.adamcin.jardelta.core.util.GenericDiffers;
 import net.adamcin.streamsupport.Both;
 import org.jetbrains.annotations.NotNull;
 
@@ -32,14 +32,14 @@ public class PidDesignatesDiffer implements Differ<PidDesignates> {
 
     @Override
     public @NotNull Stream<Diff> diff(@NotNull PidDesignates diffed) {
-        final Diff.Builder diffBuilder = Diff.builder(DIFF_KIND).named(diffed.getName());
-        return GenericDiff.ofAtMostOne(diffBuilder, diffed.both(), firsts -> diffFirst(diffed, firsts));
+        final Diff.Builder diffBuilder = Diff.builder(DIFF_KIND).named(diffed.name());
+        return GenericDiffers.ofAtMostOne(diffBuilder, diffed.both(), firsts -> diffFirst(diffed, firsts));
     }
 
     @NotNull
     Stream<Diff> diffFirst(@NotNull PidDesignates diffed,
                            @NotNull Both<MetaTypeDesignate> bothValues) {
-        final Diff.Builder diffBuilder = Diff.builder(DIFF_KIND).named(diffed.getName());
+        final Diff.Builder diffBuilder = Diff.builder(DIFF_KIND).named(diffed.name());
         final List<Diff> diffs = new ArrayList<>();
 
         if (bothValues.left().isFactory() != bothValues.right().isFactory()) {
@@ -47,7 +47,7 @@ public class PidDesignatesDiffer implements Differ<PidDesignates> {
         }
         final MetaTypeOCDDiffer ocdDiffer = new MetaTypeOCDDiffer();
         final Both<Set<String>> bothLocales = bothValues.map(MetaTypeDesignate::getLocales);
-        GenericDiff.ofAllInEitherSet(diffBuilder, bothLocales, locale -> diffed.ocds(bothValues, locale)
+        GenericDiffers.ofAllInEitherSet(diffBuilder, bothLocales, locale -> diffed.ocds(bothValues, locale)
                 .flatMap(ocdDiffer::diff))
                 .forEachOrdered(diffs::add);
         return diffs.stream();

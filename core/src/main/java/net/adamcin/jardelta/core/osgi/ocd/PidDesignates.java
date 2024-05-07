@@ -16,7 +16,7 @@
 
 package net.adamcin.jardelta.core.osgi.ocd;
 
-import net.adamcin.jardelta.core.Diffed;
+import net.adamcin.jardelta.core.Element;
 import net.adamcin.jardelta.core.Name;
 import net.adamcin.streamsupport.Both;
 import org.jetbrains.annotations.NotNull;
@@ -26,7 +26,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 
-public class PidDesignates implements Diffed<List<MetaTypeDesignate>> {
+public class PidDesignates implements Element<List<MetaTypeDesignate>> {
     private final String pid;
     private final Both<List<MetaTypeDesignate>> values;
 
@@ -41,8 +41,8 @@ public class PidDesignates implements Diffed<List<MetaTypeDesignate>> {
     }
 
     @Override
-    public @NotNull Name getName() {
-        return MetaTypeRefinementStrategy.NAME_PREFIX.append(pid);
+    public @NotNull Name name() {
+        return MetaTypeRefinementStrategy.NAME_PREFIX.appendSegment(pid);
     }
 
     @Override
@@ -55,7 +55,7 @@ public class PidDesignates implements Diffed<List<MetaTypeDesignate>> {
         final Both<Optional<ObjectClassDefinition>> ocds =
                 designates.mapOptional(designate -> designate.getObjectClassDefinitions().get(locale));
         return ocds.left().flatMap(left -> ocds.right().map(right ->
-                        new MetaTypeOCD(getName().append(localeName(locale)), Both.of(left, right))))
+                        new MetaTypeOCD(name().appendSegment(localeName(locale)), Both.of(left, right))))
                 .stream();
     }
 
