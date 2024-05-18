@@ -17,8 +17,10 @@
 package net.adamcin.jardelta.core.osgi.header;
 
 import aQute.bnd.header.Parameters;
-import net.adamcin.jardelta.core.Diff;
-import net.adamcin.jardelta.core.Differ;
+import net.adamcin.jardelta.api.Kind;
+import net.adamcin.jardelta.api.diff.Diff;
+import net.adamcin.jardelta.api.diff.Emitter;
+import net.adamcin.jardelta.api.diff.Differ;
 import net.adamcin.jardelta.core.util.GenericDiffers;
 import net.adamcin.streamsupport.Both;
 import net.adamcin.streamsupport.Fun;
@@ -30,15 +32,15 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class InstructionsDiffer implements Differ<Instructions> {
-    public static final String DIFF_KIND = "osgi.header";
+    public static final Kind DIFF_KIND = Kind.of("osgi.header");
 
     @Override
-    public @NotNull Stream<Diff> diff(@NotNull Instructions diffed) {
-        final Diff.Builder diffBuilder = Diff.builder(DIFF_KIND).named(diffed.name());
-        return GenericDiffers.ofOptionals(diffBuilder, diffed.both(), values -> diffParameters(diffed, values));
+    public @NotNull Stream<Diff> diff(@NotNull Emitter baseEmitter, @NotNull Instructions element) {
+        final Emitter childEmitter = baseEmitter.forSubElement(element);
+        return GenericDiffers.ofOptionals(childEmitter, element.values(), values -> diffParameters(childEmitter, element, values));
     }
 
-    @NotNull Stream<Diff> diffParameters(@NotNull Instructions diffed, @NotNull Both<Parameters> bothParameters) {
+    @NotNull Stream<Diff> diffParameters(@NotNull Emitter emitter, @NotNull Instructions diffed, @NotNull Both<Parameters> bothParameters) {
         final Set<String> keys = bothParameters.stream()
                 .flatMap(Fun.compose1(Parameters::keySet, Set::stream))
                 .collect(Collectors.toSet());
@@ -48,6 +50,6 @@ public class InstructionsDiffer implements Differ<Instructions> {
                 .map(key -> new Parameter(diffed.name(), key, bothParameters.map(map ->
                         Optional.ofNullable(ParameterList.from(key, map)))))
                 .filter(Parameter::isDiff)
-                .flatMap(differ::diff);
+                .flatMap(parameter -> differ.diff(emitter, parameter));
     }
 }

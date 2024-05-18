@@ -16,6 +16,9 @@
 
 package net.adamcin.jardelta.core;
 
+import net.adamcin.jardelta.api.Name;
+import net.adamcin.jardelta.api.diff.Diff;
+import net.adamcin.jardelta.api.diff.Diffs;
 import net.adamcin.jardelta.core.entry.JarEntryDiffer;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
@@ -38,7 +41,7 @@ class PlanTest {
                         getResourceAbsolute("examples/simpleText2/"))).build();
         final Diffs diffs = new Plan().execute(context).getResults();
         assertEquals(
-                Diffs.of(Diff.builder(JarEntryDiffer.DIFF_KIND).named(Name.of("helloworld.txt")).changed()), diffs);
+                Diffs.of(Diff.emitterOf(JarEntryDiffer.DIFF_KIND).forName(Name.of("helloworld.txt")).changed()), diffs);
     }
 
     URL getResourceAbsolute(@NotNull String name) {

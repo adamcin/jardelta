@@ -16,21 +16,24 @@
 
 package net.adamcin.jardelta.core.osgi.ocd;
 
-import net.adamcin.jardelta.core.Action;
+import net.adamcin.jardelta.api.Kind;
+import net.adamcin.jardelta.api.Name;
+import net.adamcin.jardelta.api.diff.Diff;
+import net.adamcin.jardelta.api.diff.Diffs;
+import net.adamcin.jardelta.api.diff.Element;
+import net.adamcin.jardelta.api.diff.Emitter;
+import net.adamcin.jardelta.api.jar.OpenJar;
 import net.adamcin.jardelta.core.Context;
-import net.adamcin.jardelta.core.Diff;
-import net.adamcin.jardelta.core.Diffs;
-import net.adamcin.jardelta.core.Element;
-import net.adamcin.jardelta.core.Name;
-import net.adamcin.jardelta.core.OpenJar;
 import net.adamcin.jardelta.core.Refinement;
 import net.adamcin.jardelta.core.RefinementStrategy;
+import net.adamcin.jardelta.core.osgi.OsgiUtil;
 import net.adamcin.streamsupport.Both;
 import net.adamcin.streamsupport.Fun;
 import net.adamcin.streamsupport.Result;
 import org.apache.felix.metatype.MetaData;
 import org.apache.felix.metatype.MetaDataReader;
 import org.jetbrains.annotations.NotNull;
+import org.osgi.framework.Bundle;
 import org.osgi.service.metatype.MetaTypeService;
 
 import java.io.InputStream;
@@ -38,6 +41,7 @@ import java.net.URL;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -45,27 +49,37 @@ import java.util.stream.Collectors;
 public class MetaTypeRefinementStrategy implements RefinementStrategy {
     static final Name NAME_PREFIX = Name.of("{osgi.ocd}");
     private static final Name METATYPE_PARENT = Name.of(MetaTypeService.METATYPE_DOCUMENTS_LOCATION);
-    public static final String KIND = "osgi.ocd";
+    public static final Kind KIND = Kind.of("osgi.ocd");
+
+    @Override
+    public @NotNull Kind getKind() {
+        return KIND;
+    }
 
     @Override
     public @NotNull Refinement refine(@NotNull Context context,
                                       @NotNull Diffs diffs,
-                                      @NotNull Element<OpenJar> openJars) throws Exception {
+                                      @NotNull Element<OpenJar> openJars) {
         // no point in deep comparison of metatype unless both jars are bundles
-        if (openJars.both().map(OpenJar::isBundle).testBoth((left, right) -> !left || !right)) {
+        Optional<Both<Bundle>> bundleAdapters = OsgiUtil.requireBothBundles(openJars.values());
+        if (bundleAdapters.isEmpty()) {
             return Refinement.EMPTY;
         }
 
+        final Both<Bundle> bothBundles = bundleAdapters.get();
+
         final Result<Both<List<JarMetaTypeProvider>>> providersResult =
-                Both.ofResults(openJars.both().map(MetaTypeRefinementStrategy::readMetaTypes));
+                Both.ofResults(openJars.values()
+                        .zip(bothBundles)
+                        .map(Fun.mapEntry(MetaTypeRefinementStrategy::readMetaTypes)));
 
         if (providersResult.isFailure()) {
             return new Refinement(Collections.emptyList(),
-                    Diffs.of(Diff.builder(KIND).named(NAME_PREFIX).build(Action.ERR_RIGHT)));
+                    Diffs.of(Diff.emitterOf(KIND).forName(NAME_PREFIX).errRight(providersResult)));
         }
 
         final Both<List<JarMetaTypeProvider>> providers = providersResult.getOrThrow();
-        final Predicate<Name> namePredicate = Fun.<Name>inferTest1(name -> name.startsWith(METATYPE_PARENT))
+        final Predicate<Name> namePredicate = Fun.<Name>inferTest1(name -> name.startsWithName(METATYPE_PARENT))
                 .or(getL10nResourcePredicate(providers));
 
         final List<Diff> superseded = diffs.stream()
@@ -75,18 +89,20 @@ public class MetaTypeRefinementStrategy implements RefinementStrategy {
             return Refinement.EMPTY;
         } else {
             final AllDesignates allDesignates = new AllDesignates(providers);
+            final Emitter designatesEmitter = Diff.emitterOf(KIND);
+            final PidDesignatesDiffer designatesDiffer = new PidDesignatesDiffer();
             return new Refinement(superseded, allDesignates.stream()
-                    .flatMap(new PidDesignatesDiffer()::diff)
-                    .collect(Diffs.collect()));
+                    .flatMap(element -> designatesDiffer.diff(designatesEmitter, element))
+                    .collect(Diffs.collector()));
         }
     }
 
-    public static Result<List<JarMetaTypeProvider>> readMetaTypes(@NotNull OpenJar jar) {
+    public static Result<List<JarMetaTypeProvider>> readMetaTypes(@NotNull OpenJar jar, @NotNull Bundle bundle) {
         final MetaDataReader reader = new MetaDataReader();
-        return jar.getNames().stream()
+        return jar.getEntryNames().stream()
                 .filter(name -> METATYPE_PARENT.equals(name.getParent()))
                 .map(Fun.result1(name -> {
-                    final URL url = jar.urlFor(name.toString());
+                    final URL url = bundle.getResource(name.toString());
                     try (InputStream inputStream = url.openStream()) {
                         MetaData metaData = reader.parse(inputStream);
                         metaData.setSource(url);
@@ -94,7 +110,7 @@ public class MetaTypeRefinementStrategy implements RefinementStrategy {
                     }
                 }))
                 .filter(result -> result.map(Objects::nonNull).getOrDefault(true))
-                .map(result -> result.map(metaData -> new JarMetaTypeProvider(jar.getBundle(), metaData)))
+                .map(result -> result.map(metaData -> new JarMetaTypeProvider(bundle, metaData)))
                 .collect(Result.tryCollect(Collectors.toList()))
                 .map(Collections::unmodifiableList);
     }
@@ -119,7 +135,7 @@ public class MetaTypeRefinementStrategy implements RefinementStrategy {
                 return false;
             }
             final Name parent = path.getParent();
-            return (parent == null || name.startsWith(parent))
+            return (parent == null || name.startsWithName(parent))
                     && name.startsWith(path.getSegment());
         };
     }

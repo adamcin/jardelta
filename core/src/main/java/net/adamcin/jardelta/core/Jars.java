@@ -16,7 +16,10 @@
 
 package net.adamcin.jardelta.core;
 
-import net.adamcin.jardelta.core.entry.JarEntryMetadata;
+import net.adamcin.jardelta.api.Name;
+import net.adamcin.jardelta.api.diff.Element;
+import net.adamcin.jardelta.api.jar.EntryMeta;
+import net.adamcin.jardelta.api.jar.OpenJar;
 import net.adamcin.streamsupport.Both;
 import net.adamcin.streamsupport.Fun;
 import net.adamcin.streamsupport.Result;
@@ -24,7 +27,6 @@ import net.adamcin.streamsupport.throwing.ThrowingFunction;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
-import java.net.URI;
 import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -34,7 +36,7 @@ import java.util.TreeMap;
 public final class Jars {
     private final Both<String> names;
     private final Both<Path> values;
-    private final Both<Map<Name, Result<JarEntryMetadata>>> resourceCaches = Both.of(new TreeMap<>(), new TreeMap<>());
+    private final Both<Map<Name, Result<EntryMeta>>> resourceCaches = Both.of(new TreeMap<>(), new TreeMap<>());
 
     public Jars(@NotNull Both<Path> values) {
         this(values.map(Path::toString), values);
@@ -45,19 +47,19 @@ public final class Jars {
         this.values = values;
     }
 
-    public <T> Result<T> using(@NotNull ThrowingFunction<Element<OpenJar>, ? extends T> usingFn) {
+    public <T> Result<T> openThen(@NotNull ThrowingFunction<Element<OpenJar>, ? extends T> usingFn) {
         return Fun.result0(() -> {
-            try (OpenJar leftJar = OpenJar.fromFile(names.left(), values.left(), resourceCaches.left());
-                 OpenJar rightJar = OpenJar.fromFile(names.right(), values.right(), resourceCaches.right())) {
+            try (OpenJarImpl leftJar = OpenJarImpl.fromFile(names.left(), values.left(), resourceCaches.left());
+                 OpenJarImpl rightJar = OpenJarImpl.fromFile(names.right(), values.right(), resourceCaches.right())) {
                 final Both<OpenJar> openJars = Both.of(leftJar, rightJar);
-                return (T) usingFn.tryApply(new Element<OpenJar>() {
+                return (T) usingFn.tryApply(new Element<>() {
                     @Override
                     public @NotNull Name name() {
                         return Name.ROOT;
                     }
 
                     @Override
-                    public @NotNull Both<OpenJar> both() {
+                    public @NotNull Both<OpenJar> values() {
                         return openJars;
                     }
                 });

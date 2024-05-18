@@ -16,8 +16,10 @@
 
 package net.adamcin.jardelta.core.manifest;
 
-import net.adamcin.jardelta.core.Diff;
-import net.adamcin.jardelta.core.Differ;
+import net.adamcin.jardelta.api.Kind;
+import net.adamcin.jardelta.api.diff.Diff;
+import net.adamcin.jardelta.api.diff.Differ;
+import net.adamcin.jardelta.api.diff.Emitter;
 import net.adamcin.jardelta.core.util.GenericDiffers;
 import net.adamcin.streamsupport.Both;
 import net.adamcin.streamsupport.Fun;
@@ -30,17 +32,23 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class ManifestDiffer implements Differ<Manifests> {
-    public static final String DIFF_KIND = "manifest";
+    public static final Kind DIFF_KIND = Kind.of("manifest");
 
     @Override
-    public @NotNull Stream<Diff> diff(@NotNull Manifests diffed) {
-        final Diff.Builder diffBuilder = Diff.builder(DIFF_KIND).named(diffed.name());
-        return GenericDiffers.ofOptionals(diffBuilder, diffed.both(), values ->
-                diffMainAttributes(values.map(Manifest::getMainAttributes)));
+    public @NotNull Stream<Diff> diff(@NotNull Emitter baseEmitter, @NotNull Manifests element) {
+        final Emitter emitter = baseEmitter.forSubElement(element);
+        return GenericDiffers.ofOptionals(emitter, element.values(), values -> Stream.concat(
+                diffAttributes(emitter, values.map(Manifest::getMainAttributes)),
+                GenericDiffers.ofAllInEitherMap(entryName -> emitter
+                                .ofSubKind(Kind.of("entry"))
+                                .forChild(String.format("{entry:%s}", entryName)), values.map(Manifest::getEntries),
+                        (childEmitter, optAttrs) ->
+                                GenericDiffers.ofOptionals(childEmitter, optAttrs,
+                                        bothAttrs -> diffAttributes(childEmitter, bothAttrs)))));
     }
 
     @NotNull
-    Stream<Diff> diffMainAttributes(@NotNull Both<Attributes> bothAttributes) {
+    Stream<Diff> diffAttributes(@NotNull Emitter emitter, @NotNull Both<Attributes> bothAttributes) {
         final Set<Attributes.Name> allNames = bothAttributes
                 .stream()
                 .flatMap(Fun.compose1(Attributes::keySet, Set::stream))
@@ -53,7 +61,7 @@ public class ManifestDiffer implements Differ<Manifests> {
                         FallbackAttributeHandler.ANY_ATTRIBUTE,
                         bothAttributes.mapOptional(attributes -> attributes.getValue(name))))
                 .filter(MFAttribute::isDiff)
-                .flatMap(diffable -> diffable.getDiffer().diff(diffable));
+                .flatMap(diffable -> diffable.getDiffer().diff(emitter, diffable));
     }
 
 }

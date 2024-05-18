@@ -16,8 +16,8 @@
 
 package net.adamcin.jardelta.core.osgi.scr;
 
-import net.adamcin.jardelta.core.Element;
-import net.adamcin.jardelta.core.Name;
+import net.adamcin.jardelta.api.diff.Element;
+import net.adamcin.jardelta.api.Name;
 import net.adamcin.streamsupport.Both;
 import org.apache.felix.scr.impl.metadata.ComponentMetadata;
 import org.jetbrains.annotations.NotNull;
@@ -42,7 +42,7 @@ public class ScrComponents implements Element<ComponentMetadata> {
     }
 
     @Override
-    public @NotNull Both<ComponentMetadata> both() {
+    public @NotNull Both<ComponentMetadata> values() {
         return values;
     }
 }

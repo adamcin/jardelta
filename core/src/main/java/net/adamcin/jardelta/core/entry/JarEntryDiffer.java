@@ -16,9 +16,12 @@
 
 package net.adamcin.jardelta.core.entry;
 
-import net.adamcin.jardelta.core.Diff;
-import net.adamcin.jardelta.core.Differ;
-import net.adamcin.jardelta.core.Name;
+import net.adamcin.jardelta.api.Kind;
+import net.adamcin.jardelta.api.Name;
+import net.adamcin.jardelta.api.diff.Diff;
+import net.adamcin.jardelta.api.diff.Differ;
+import net.adamcin.jardelta.api.diff.Emitter;
+import net.adamcin.jardelta.api.jar.EntryMeta;
 import net.adamcin.jardelta.core.Settings;
 import net.adamcin.jardelta.core.util.CompositeDiffer;
 import net.adamcin.jardelta.core.util.GenericDiffers;
@@ -27,24 +30,24 @@ import org.jetbrains.annotations.NotNull;
 import java.util.stream.Stream;
 
 public class JarEntryDiffer implements Differ<JarEntry> {
-    public static final String DIFF_KIND = "entry";
-    private final CompositeDiffer<JarEntryMetadata> differs;
+    public static final Kind DIFF_KIND = Kind.of("entry");
+    private final CompositeDiffer<EntryMeta> differs;
 
     public JarEntryDiffer(final @NotNull Settings settings) {
-        this.differs = CompositeDiffer.of(nextDiff -> {
-            nextDiff.accept("", (builder, element) -> GenericDiffers.ofObjectEquality(builder, element.both().map(JarEntryMetadata::getSha256)));
-            nextDiff.accept("{extra}", (builder, element) -> GenericDiffers.ofOptionals(builder, element.both().mapOptional(JarEntryMetadata::getExtra)));
+        this.differs = CompositeDiffer.of(builder -> {
+            builder.put("", (emitter, element) -> GenericDiffers.ofObjectEquality(emitter, element.values().map(EntryMeta::getSha256)));
+            builder.put("{extra}", (emitter, element) -> GenericDiffers.ofOptionals(emitter, element.values().mapOptional(EntryMeta::getExtra)));
             if (settings.isCompareLastModified()) {
-                nextDiff.accept("{lastModified}", (builder, element) -> GenericDiffers.ofObjectEquality(builder, element.both().map(JarEntryMetadata::getSha256)));
+                builder.put("{lastModified}", (emitter, element) -> GenericDiffers.ofObjectEquality(emitter, element.values().map(EntryMeta::getSha256)));
             }
         });
     }
 
     @Override
-    public @NotNull Stream<Diff> diff(@NotNull JarEntry diffed) {
-        final Diff.Builder builder = Diff.builder(DIFF_KIND).named(diffed.name());
-        return GenericDiffers.ofOptionals(builder, diffed.both(), results ->
-                GenericDiffers.ofResults(builder, results, values ->
-                        differs.diff(builder, diffed.project(Name.ROOT, values))));
+    public @NotNull Stream<Diff> diff(@NotNull Emitter baseEmitter, @NotNull JarEntry element) {
+        final Emitter emitter = baseEmitter.forSubElement(element);
+        return GenericDiffers.ofOptionals(emitter, element.values(), results ->
+                GenericDiffers.ofResults(emitter, results, values ->
+                        differs.diff(emitter, element.project(Name.ROOT, values))));
     }
 }

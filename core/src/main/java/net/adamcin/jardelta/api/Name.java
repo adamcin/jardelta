@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package net.adamcin.jardelta.core;
+package net.adamcin.jardelta.api;
 
 import lombok.EqualsAndHashCode;
 import lombok.NonNull;
@@ -31,10 +31,10 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * A hierarchical path name capable of representing JAR resource/entry names, as well as virtual names with
+ * A hierarchical path name capable of representing JAR resource/entry names and virtual resource names.
  */
 @EqualsAndHashCode
-public final class Name implements Serializable, Comparable<Name> {
+public final class Name implements Comparable<Name>, Serializable {
     public static final Name ROOT = new Name("");
     static final String ERROR_PREFIX_UNEXPECTED_RIGHT_BRACKET = "Name segment contains unexpected '}' bracket: ";
     static final String ERROR_PREFIX_UNTERMINATED_LEFT_BRACKET = "Name segment contains unterminated '{' bracket: ";
@@ -147,7 +147,7 @@ public final class Name implements Serializable, Comparable<Name> {
      * slash.
      *
      * @param childSegment the child name segment
-     * @return a {@link net.adamcin.jardelta.core.Name} whose parent is this
+     * @return a {@link Name} whose parent is this
      * @see #ofSegment(String)
      */
     @NotNull
@@ -186,10 +186,10 @@ public final class Name implements Serializable, Comparable<Name> {
      * @param otherName the candidate ancestor path name
      * @return true if this name is a descendant of otherName
      */
-    public boolean startsWith(@NotNull Name otherName) {
+    public boolean startsWithName(@NotNull Name otherName) {
         return this.equals(otherName)
                 || Optional.ofNullable(getParent())
-                .map(parent -> parent.startsWith(otherName))
+                .map(parent -> parent.startsWithName(otherName))
                 .orElse(false);
     }
 
@@ -211,7 +211,7 @@ public final class Name implements Serializable, Comparable<Name> {
      * @param otherName the candidate suffix path name
      * @return true if {@code otherName} is a relative path for this name against one of its parent names
      */
-    public boolean endsWith(@NotNull Name otherName) {
+    public boolean endsWithName(@NotNull Name otherName) {
         if (this.equals(otherName)) {
             return true;
         } else {

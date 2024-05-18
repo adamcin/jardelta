@@ -16,16 +16,18 @@
 
 package net.adamcin.jardelta.core.osgi.header;
 
+import net.adamcin.jardelta.api.Kind;
+import net.adamcin.jardelta.api.diff.Emitter;
 import net.adamcin.jardelta.core.manifest.MFAttribute;
-import net.adamcin.jardelta.core.Diff;
-import net.adamcin.jardelta.core.Differ;
-import net.adamcin.jardelta.core.manifest.MFAttributeDiff;
+import net.adamcin.jardelta.api.diff.Diff;
+import net.adamcin.jardelta.api.diff.Differ;
+import net.adamcin.jardelta.core.util.GenericDiffers;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.stream.Stream;
 
 public class LocalizedHeaderDiff implements Differ<MFAttribute> {
-    public static final String DIFF_KIND = "osgi.header.locale";
+    public static final Kind DIFF_KIND = Kind.of("osgi.header.locale");
 
     private final String locale;
 
@@ -34,7 +36,7 @@ public class LocalizedHeaderDiff implements Differ<MFAttribute> {
     }
 
     @Override
-    public @NotNull Stream<Diff> diff(@NotNull MFAttribute diffed) {
-        return diffed.isDiff() ? Stream.of(MFAttributeDiff.ofRawValue(DIFF_KIND, diffed)) : Stream.empty();
+    public @NotNull Stream<Diff> diff(@NotNull Emitter baseEmitter, @NotNull MFAttribute element) {
+        return GenericDiffers.ofOptionals(Diff.emitterOf(DIFF_KIND).forSubElement(element), element.values());
     }
 }

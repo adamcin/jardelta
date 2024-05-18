@@ -18,8 +18,9 @@ package net.adamcin.jardelta.core.osgi.ocd;
 
 import jakarta.json.Json;
 import jakarta.json.stream.JsonCollectors;
-import net.adamcin.jardelta.core.Diff;
-import net.adamcin.jardelta.core.Differ;
+import net.adamcin.jardelta.api.diff.Diff;
+import net.adamcin.jardelta.api.diff.Differ;
+import net.adamcin.jardelta.api.diff.Emitter;
 import net.adamcin.jardelta.core.util.GenericDiffers;
 import net.adamcin.streamsupport.Both;
 import net.adamcin.streamsupport.Fun;
@@ -36,31 +37,28 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 public class MetaTypeOCDDiffer implements Differ<MetaTypeOCD> {
-    public static final String DIFF_KIND = "osgi.ocd";
 
     @Override
-    public @NotNull Stream<Diff> diff(@NotNull MetaTypeOCD diffed) {
-        final Diff.Builder diffBuilder = new Diff.Builder(DIFF_KIND).named(diffed.name());
+    public @NotNull Stream<Diff> diff(@NotNull Emitter baseEmitter, @NotNull MetaTypeOCD element) {
+        final Emitter emitter = baseEmitter.forSubElement(element);
         final Stream<Diff> ocdElementDiffs = Stream.of(
-                Fun.toEntry("@name", diffed.both().mapOptional(ObjectClassDefinition::getName)),
-                Fun.toEntry("@description", diffed.both().mapOptional(ObjectClassDefinition::getDescription))
-        ).flatMap(Fun.mapEntry((key, values) -> diffElements(diffBuilder, key, values)));
+                Fun.toEntry("@name", element.values().mapOptional(ObjectClassDefinition::getName)),
+                Fun.toEntry("@description", element.values().mapOptional(ObjectClassDefinition::getDescription))
+        ).flatMap(Fun.mapEntry((key, values) -> GenericDiffers.ofObjectEquality(emitter.forChild(key), requireChars(values))));
 
-        final Both<Map<String, List<AttributeDefinition>>> bothAttributeDefinitions = diffed.both()
+        final Both<Map<String, List<AttributeDefinition>>> bothAttributeDefinitions = element.values()
                 .map(ocd -> {
                     AttributeDefinition[] attributes = ocd.getAttributeDefinitions(ObjectClassDefinition.ALL);
                     Stream<AttributeDefinition> attributeStream = attributes == null ? Stream.empty() : Stream.of(attributes);
                     return attributeStream.collect(Collectors.groupingBy(AttributeDefinition::getID));
                 });
 
-        return Stream.concat(ocdElementDiffs, GenericDiffers.ofAllInEitherMap(diffBuilder::child, bothAttributeDefinitions,
-                (attributeId, bothLists) -> {
-                    final Diff.Builder childBuilder = diffBuilder.child(attributeId);
-                    return GenericDiffers.ofAtMostOne(childBuilder, bothLists.map(Optional::get),
-                            bothAttributes -> Stream.concat(diffADProperties(childBuilder, bothAttributes),
-                                    diffOptions(childBuilder, bothAttributes))
-                    );
-                }));
+        return Stream.concat(ocdElementDiffs, GenericDiffers.ofAllInEitherMap(emitter::forChild, bothAttributeDefinitions,
+                (childEmitter, bothLists) ->
+                        GenericDiffers.ofAtMostOne(childEmitter, bothLists.map(Optional::get),
+                                bothAttributes -> Stream.concat(diffADProperties(childEmitter, bothAttributes),
+                                        diffOptions(childEmitter, bothAttributes))
+                        )));
     }
 
     @NotNull
@@ -68,7 +66,7 @@ public class MetaTypeOCDDiffer implements Differ<MetaTypeOCD> {
         return values.map(value -> value.filter(Fun.inferTest1(String::isEmpty).negate()));
     }
 
-    Stream<Diff> diffADProperties(@NotNull Diff.Builder childBuilder, @NotNull Both<AttributeDefinition> bothAttributes) {
+    Stream<Diff> diffADProperties(@NotNull Emitter baseEmitter, @NotNull Both<AttributeDefinition> bothAttributes) {
         return Stream.concat(Stream.of(
                         Fun.toEntry("@name", bothAttributes.mapOptional(AttributeDefinition::getName)),
                         Fun.toEntry("@description", bothAttributes.mapOptional(AttributeDefinition::getDescription)),
@@ -76,16 +74,16 @@ public class MetaTypeOCDDiffer implements Differ<MetaTypeOCD> {
                                 .map(odv -> odv.map(Stream::of).map(dvs -> dvs
                                         .map(Json::createValue)
                                         .collect(JsonCollectors.toJsonArray()).toString())))
-                ).flatMap(Fun.mapEntry((key, values) -> diffElements(childBuilder, key, values))),
+                ).flatMap(Fun.mapEntry((key, values) -> GenericDiffers.ofObjectEquality(baseEmitter.forChild(key), values))),
                 Stream.of(
                         Fun.toEntry("@type", bothAttributes.map(AttributeDefinition::getType)),
                         Fun.toEntry("@cardinality", bothAttributes.map(AttributeDefinition::getCardinality))
-                ).flatMap(Fun.mapEntry((key, values) -> diffIntegers(childBuilder, key, values))));
+                ).flatMap(Fun.mapEntry((key, values) -> GenericDiffers.ofObjectEquality(baseEmitter.forChild(key), values))));
     }
 
-    Stream<Diff> diffOptions(@NotNull Diff.Builder parentBuilder,
+    Stream<Diff> diffOptions(@NotNull Emitter baseEmitter,
                              @NotNull Both<AttributeDefinition> bothAttributes) {
-        final Diff.Builder optionsDiff = parentBuilder.child("@options");
+        final Emitter emitter = baseEmitter.forChild("@options");
         final Both<Optional<Map<String, Optional<String>>>> bothOptionsMaps = bothAttributes
                 .mapOptional(AttributeDefinition::getOptionValues)
                 .zipWith(bothAttributes.mapOptional(AttributeDefinition::getOptionLabels),
@@ -95,39 +93,13 @@ public class MetaTypeOCDDiffer implements Differ<MetaTypeOCD> {
                                                         ? Optional.ofNullable(labels[index])
                                                         : Optional.<String>empty()))
                                         .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)))));
-        return GenericDiffers.ofOptionals(optionsDiff, bothOptionsMaps, optionsMap ->
-                GenericDiffers.ofAllInEitherMap(optionsDiff::child, optionsMap, (option, optOptLabels) -> {
-                    final Diff.Builder optionValueDiff = optionsDiff.child(option);
-                    return GenericDiffers.ofOptionals(optionValueDiff,
-                            optOptLabels.map(optOptLabel -> optOptLabel.flatMap(label -> label)),
-                            labels -> labels.testBoth(Objects::equals)
-                                    ? Stream.empty()
-                                    : Stream.of(optionValueDiff.changed()));
-                }));
-    }
-
-    Stream<Diff> diffIntegers(@NotNull Diff.Builder parentBuilder,
-                              @NotNull String key,
-                              @NotNull Both<Integer> values) {
-        final Diff.Builder elementDiff = parentBuilder.child(key);
-        if (values.testBoth(Objects::equals)) {
-            return Stream.empty();
-        } else {
-            return Stream.of(elementDiff.changed());
-        }
-    }
-
-    Stream<Diff> diffElements(@NotNull Diff.Builder parentBuilder,
-                              @NotNull String key,
-                              @NotNull Both<Optional<String>> values) {
-        final Diff.Builder elementDiff = parentBuilder.child(key);
-        final Both<Optional<String>> required = requireChars(values);
-        return GenericDiffers.ofOptionals(elementDiff, required, diffed -> {
-            if (diffed.testBoth(Objects::equals)) {
-                return Stream.empty();
-            } else {
-                return Stream.of(elementDiff.changed());
-            }
-        });
+        return GenericDiffers.ofOptionals(emitter, bothOptionsMaps, optionsMap ->
+                GenericDiffers.ofAllInEitherMap(emitter::forChild, optionsMap, (optionValueDiff, optOptLabels) ->
+                        GenericDiffers.ofOptionals(optionValueDiff,
+                                optOptLabels.map(optOptLabel -> optOptLabel.flatMap(label -> label)),
+                                labels -> labels.testBoth(Objects::equals)
+                                        ? Stream.empty()
+                                        : Stream.of(optionValueDiff.changed()))
+                ));
     }
 }

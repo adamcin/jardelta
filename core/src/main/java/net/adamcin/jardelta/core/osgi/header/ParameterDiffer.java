@@ -16,8 +16,10 @@
 
 package net.adamcin.jardelta.core.osgi.header;
 
-import net.adamcin.jardelta.core.Differ;
-import net.adamcin.jardelta.core.Diff;
+import net.adamcin.jardelta.api.Kind;
+import net.adamcin.jardelta.api.diff.Emitter;
+import net.adamcin.jardelta.api.diff.Differ;
+import net.adamcin.jardelta.api.diff.Diff;
 import net.adamcin.jardelta.core.util.GenericDiffers;
 import net.adamcin.streamsupport.Both;
 import org.jetbrains.annotations.NotNull;
@@ -25,16 +27,16 @@ import org.jetbrains.annotations.NotNull;
 import java.util.stream.Stream;
 
 public class ParameterDiffer implements Differ<Parameter> {
-    public static final String DIFF_KIND = "osgi.header.parameter";
+    public static final Kind DIFF_KIND = Kind.of("osgi.header.parameter");
 
     @Override
-    public @NotNull Stream<Diff> diff(@NotNull Parameter diffed) {
-        final Diff.Builder diffBuilder = Diff.builder(DIFF_KIND).named(diffed.name());
-        return GenericDiffers.ofOptionals(diffBuilder, diffed.both(),
-                values -> diffParameterLists(diffBuilder, diffed, values));
+    public @NotNull Stream<Diff> diff(@NotNull Emitter baseEmitter, @NotNull Parameter element) {
+        final Emitter diffBuilder = baseEmitter.ofSubKind(DIFF_KIND).forSubElement(element);
+        return GenericDiffers.ofOptionals(diffBuilder, element.values(),
+                values -> diffParameterLists(diffBuilder, element, values));
     }
 
-    @NotNull Stream<Diff> diffParameterLists(@NotNull Diff.Builder diffBuilder,
+    @NotNull Stream<Diff> diffParameterLists(@NotNull Emitter diffBuilder,
                                              @NotNull Parameter diffed,
                                              @NotNull Both<ParameterList> bothParameterLists) {
         return Stream.of(diffBuilder.changed());

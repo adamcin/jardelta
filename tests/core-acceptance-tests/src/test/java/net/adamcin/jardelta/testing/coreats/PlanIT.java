@@ -17,7 +17,7 @@
 package net.adamcin.jardelta.testing.coreats;
 
 import net.adamcin.jardelta.core.Context;
-import net.adamcin.jardelta.core.Diffs;
+import net.adamcin.jardelta.api.diff.Diffs;
 import net.adamcin.jardelta.core.Jars;
 import net.adamcin.jardelta.core.Plan;
 import org.junit.jupiter.api.Test;

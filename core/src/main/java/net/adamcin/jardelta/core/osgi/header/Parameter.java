@@ -16,8 +16,8 @@
 
 package net.adamcin.jardelta.core.osgi.header;
 
-import net.adamcin.jardelta.core.Element;
-import net.adamcin.jardelta.core.Name;
+import net.adamcin.jardelta.api.diff.Element;
+import net.adamcin.jardelta.api.Name;
 import net.adamcin.streamsupport.Both;
 import org.jetbrains.annotations.NotNull;
 
@@ -43,7 +43,7 @@ public class Parameter implements Element<Optional<ParameterList>> {
     }
 
     @Override
-    public @NotNull Both<Optional<ParameterList>> both() {
+    public @NotNull Both<Optional<ParameterList>> values() {
         return values;
     }
 

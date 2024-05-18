@@ -16,8 +16,8 @@
 
 package net.adamcin.jardelta.core.osgi.ocd;
 
-import net.adamcin.jardelta.core.Element;
-import net.adamcin.jardelta.core.Name;
+import net.adamcin.jardelta.api.diff.Element;
+import net.adamcin.jardelta.api.Name;
 import net.adamcin.streamsupport.Both;
 import org.jetbrains.annotations.NotNull;
 import org.osgi.service.metatype.ObjectClassDefinition;
@@ -46,7 +46,7 @@ public class PidDesignates implements Element<List<MetaTypeDesignate>> {
     }
 
     @Override
-    public @NotNull Both<List<MetaTypeDesignate>> both() {
+    public @NotNull Both<List<MetaTypeDesignate>> values() {
         return values;
     }
 

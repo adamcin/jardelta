@@ -16,10 +16,12 @@
 
 package net.adamcin.jardelta.core.osgi.ocd;
 
-import net.adamcin.jardelta.core.Diff;
-import net.adamcin.jardelta.core.Differ;
+import net.adamcin.jardelta.api.diff.Diff;
+import net.adamcin.jardelta.api.diff.Differ;
+import net.adamcin.jardelta.api.diff.Emitter;
 import net.adamcin.jardelta.core.util.GenericDiffers;
 import net.adamcin.streamsupport.Both;
+import net.adamcin.streamsupport.Fun;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
@@ -28,27 +30,27 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 public class PidDesignatesDiffer implements Differ<PidDesignates> {
-    public static final String DIFF_KIND = "osgi.metatype.designate";
 
     @Override
-    public @NotNull Stream<Diff> diff(@NotNull PidDesignates diffed) {
-        final Diff.Builder diffBuilder = Diff.builder(DIFF_KIND).named(diffed.name());
-        return GenericDiffers.ofAtMostOne(diffBuilder, diffed.both(), firsts -> diffFirst(diffed, firsts));
+    public @NotNull Stream<Diff> diff(@NotNull Emitter baseEmitter, @NotNull PidDesignates element) {
+        final Emitter diffBuilder = baseEmitter.forSubElement(element);
+        return GenericDiffers.ofAtMostOne(diffBuilder, element.values(), firsts -> diffFirst(diffBuilder, element, firsts));
     }
 
     @NotNull
-    Stream<Diff> diffFirst(@NotNull PidDesignates diffed,
+    Stream<Diff> diffFirst(@NotNull Emitter emitter,
+                           @NotNull PidDesignates element,
                            @NotNull Both<MetaTypeDesignate> bothValues) {
-        final Diff.Builder diffBuilder = Diff.builder(DIFF_KIND).named(diffed.name());
         final List<Diff> diffs = new ArrayList<>();
 
         if (bothValues.left().isFactory() != bothValues.right().isFactory()) {
-            diffs.add(diffBuilder.child("{isFactory}").changed());
+            diffs.add(emitter.forChild("{isFactory}").changed());
         }
         final MetaTypeOCDDiffer ocdDiffer = new MetaTypeOCDDiffer();
         final Both<Set<String>> bothLocales = bothValues.map(MetaTypeDesignate::getLocales);
-        GenericDiffers.ofAllInEitherSet(diffBuilder, bothLocales, locale -> diffed.ocds(bothValues, locale)
-                .flatMap(ocdDiffer::diff))
+        GenericDiffers.ofAllInEitherSet(emitter, bothLocales, (childEmitter, locale) -> element.ocds(bothValues, locale)
+                        .map(Fun.zipValuesWithKeyFunc(value -> childEmitter))
+                        .flatMap(Fun.mapEntry(ocdDiffer::diff)))
                 .forEachOrdered(diffs::add);
         return diffs.stream();
     }

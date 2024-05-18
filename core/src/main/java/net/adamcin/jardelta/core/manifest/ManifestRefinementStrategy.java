@@ -16,34 +16,44 @@
 
 package net.adamcin.jardelta.core.manifest;
 
+import net.adamcin.jardelta.api.Kind;
+import net.adamcin.jardelta.api.diff.Action;
+import net.adamcin.jardelta.api.diff.Diff;
+import net.adamcin.jardelta.api.diff.Diffs;
+import net.adamcin.jardelta.api.diff.Element;
+import net.adamcin.jardelta.api.jar.OpenJar;
 import net.adamcin.jardelta.core.Context;
-import net.adamcin.jardelta.core.Diff;
-import net.adamcin.jardelta.core.Element;
-import net.adamcin.jardelta.core.OpenJar;
-import net.adamcin.jardelta.core.Action;
-import net.adamcin.jardelta.core.Diffs;
 import net.adamcin.jardelta.core.Refinement;
 import net.adamcin.jardelta.core.RefinementStrategy;
-import net.adamcin.streamsupport.Both;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static net.adamcin.jardelta.core.manifest.ManifestDiffer.DIFF_KIND;
+
 public class ManifestRefinementStrategy implements RefinementStrategy {
+
+    @Override
+    public @NotNull Kind getKind() {
+        return DIFF_KIND;
+    }
 
     @Override
     public @NotNull Refinement refine(@NotNull Context context,
                                       @NotNull Diffs diffs,
-                                      @NotNull Element<OpenJar> openJars) throws Exception {
-        List<Diff> superseded = diffs.stream().filter(diff -> diff.getName().equals(Manifests.NAME_MANIFEST)
-                && diff.getAction() == Action.CHANGED).collect(Collectors.toList());
+                                      @NotNull Element<OpenJar> openJars) {
+        List<Diff> superseded = diffs
+                .withExactName(Manifests.NAME_MANIFEST)
+                .withActions(Action.CHANGED)
+                .stream().collect(Collectors.toList());
         if (superseded.isEmpty()) {
             return Refinement.EMPTY;
         } else {
             return new Refinement(superseded,
-                    new ManifestDiffer().diff(new Manifests(openJars.both().mapOptional(OpenJar::getManifest)))
-                            .collect(Diffs.collect()));
+                    new ManifestDiffer().diff(Diff.emitterOf(DIFF_KIND),
+                                    new Manifests(openJars.values().mapOptional(OpenJar::getManifest)))
+                            .collect(Diffs.collector()));
         }
     }
 }

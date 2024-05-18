@@ -16,7 +16,7 @@
 
 package net.adamcin.jardelta.core.manifest;
 
-import net.adamcin.jardelta.core.Differ;
+import net.adamcin.jardelta.api.diff.Differ;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 

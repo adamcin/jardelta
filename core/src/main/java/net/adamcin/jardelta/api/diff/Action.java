@@ -14,15 +14,13 @@
  * limitations under the License.
  */
 
-package net.adamcin.jardelta.core;
+package net.adamcin.jardelta.api.diff;
+
+import java.io.Serializable;
 
 /**
- * Useful enumerator of diff actions.
+ * Enumerator of diff actions. Enum values should be defined in order from least significant to most significant.
  */
-public enum Action {
+public enum Action implements Comparable<Action>, Serializable {
     ERR_LEFT, ADDED, CHANGED, REMOVED, ERR_RIGHT;
-
-    public String lower() {
-        return name().toLowerCase();
-    }
 }

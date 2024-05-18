@@ -17,6 +17,7 @@
 package net.adamcin.jardelta.core;
 
 import aQute.lib.collections.Enumerations;
+import net.adamcin.jardelta.api.Name;
 import net.adamcin.jardelta.core.osgi.ocd.JarMetaTypeProvider;
 import net.adamcin.streamsupport.Fun;
 import org.apache.felix.metatype.MetaData;
@@ -62,13 +63,13 @@ import static net.adamcin.streamsupport.Fun.uncheck0;
  * through OSGi-specified interfaces.
  */
 final class BundleFacade implements Bundle {
-    private final OpenJar jar;
+    private final OpenJarImpl jar;
     private final Manifest manifest;
     private final Attributes mainAttributes;
     private final MockBundle mockBundle;
     private static final BundleContext mockBundleContext = MockOsgi.newBundleContext();
     private final Map<String, Properties> localeCache;
-    public BundleFacade(@NotNull OpenJar jar) {
+    public BundleFacade(@NotNull OpenJarImpl jar) {
         this.jar = jar;
         this.manifest = uncheck0(jar::getManifest).get();
         this.mainAttributes = Optional.ofNullable(manifest)
@@ -84,7 +85,7 @@ final class BundleFacade implements Bundle {
         final Map<String, Properties> localeCache = new TreeMap<>();
         locales.forEach(locale -> {
             final String localePathName = localePrefix + "_" + locale + ".properties";
-            if (this.jar.getNames().contains(bundlePathToName(localePathName))) {
+            if (this.jar.getEntryNames().contains(bundlePathToName(localePathName))) {
                 result0(() -> {
                     Properties props = new Properties();
                     try (InputStream inputStream = this.getResource(localePathName).openStream()) {
@@ -225,14 +226,14 @@ final class BundleFacade implements Bundle {
             return recurse ? name -> true : name -> name.getParent() == null;
         } else {
             return recurse
-                    ? name -> name.getParent() != null && name.getParent().startsWith(pathName)
+                    ? name -> name.getParent() != null && name.getParent().startsWithName(pathName)
                     : name -> name.getParent() != null && name.getParent().equals(pathName);
         }
     }
 
     Stream<String> internalGetEntryPaths(@NotNull String path, boolean recurse) {
         final Predicate<Name> parentPredicate = getParentPathPredicate(path, recurse);
-        return Stream.concat(jar.getNames().stream()
+        return Stream.concat(jar.getEntryNames().stream()
                 .filter(parentPredicate)
                 .map(Name::toString), jar.getDirNames().stream()
                 .filter(parentPredicate)

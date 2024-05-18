@@ -18,6 +18,8 @@ package net.adamcin.jardelta.core;
 
 
 import lombok.Getter;
+import net.adamcin.jardelta.api.diff.Diff;
+import net.adamcin.jardelta.api.diff.Diffs;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Collection;

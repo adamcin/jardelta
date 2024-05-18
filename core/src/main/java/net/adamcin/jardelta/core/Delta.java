@@ -19,7 +19,7 @@ package net.adamcin.jardelta.core;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NonNull;
-import lombok.ToString;
+import net.adamcin.jardelta.api.diff.Diffs;
 
 import java.util.Collections;
 import java.util.List;

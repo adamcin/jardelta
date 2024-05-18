@@ -16,6 +16,10 @@
 
 package net.adamcin.jardelta.core;
 
+import net.adamcin.jardelta.api.diff.Diff;
+import net.adamcin.jardelta.api.diff.Emitter;
+import net.adamcin.jardelta.api.diff.Diffs;
+import net.adamcin.jardelta.core.entry.JarEntryDiffer;
 import net.adamcin.jardelta.core.manifest.ManifestRefinementStrategy;
 import net.adamcin.jardelta.core.mavenmeta.MavenMetaRefinementStrategy;
 import net.adamcin.jardelta.core.osgi.header.HeaderRefinementStrategy;
@@ -29,7 +33,7 @@ import java.util.Optional;
 
 public class Plan {
 
-    private List<RefinementStrategy> refinementStrategies = List.of(
+    private final List<RefinementStrategy> refinementStrategies = List.of(
             new ManifestRefinementStrategy(),
             new HeaderRefinementStrategy(),
             new ScrRefinementStrategy(),
@@ -42,13 +46,14 @@ public class Plan {
                 .orElse(Settings.DEFAULT_SETTINGS));
 
         final Delta.DeltaBuilder deltaBuilder = new Delta.DeltaBuilder();
-
-        Diffs diffs = context.getJars().using(openJars -> differ.diff(openJars).collect(Diffs.collect())).getOrThrow();
+        final Emitter emitter = Diff.emitterOf(JarEntryDiffer.DIFF_KIND);
+        Diffs diffs = context.getJars().openThen(openJars ->
+                differ.diff(emitter, openJars).collect(Diffs.collector())).getOrThrow();
         deltaBuilder.initial(diffs);
         final List<Refinement> refinements = new ArrayList<>();
         for (RefinementStrategy strategy : refinementStrategies) {
             final Diffs toRefine = diffs;
-            Refinement refinement = context.getJars().using(openJars -> strategy.refine(context, toRefine, openJars))
+            Refinement refinement = context.getJars().openThen(openJars -> strategy.refine(context, toRefine, openJars))
                     .getOrThrow();
             diffs = diffs.refinedBy(refinement);
             refinements.add(refinement);

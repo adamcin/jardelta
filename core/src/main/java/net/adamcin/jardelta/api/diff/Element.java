@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 
-package net.adamcin.jardelta.core;
+package net.adamcin.jardelta.api.diff;
 
+import net.adamcin.jardelta.api.Name;
 import net.adamcin.streamsupport.Both;
 import org.jetbrains.annotations.NotNull;
-import org.osgi.annotation.versioning.ProviderType;
+import org.osgi.annotation.versioning.ConsumerType;
 
 import java.util.function.Function;
 
@@ -27,7 +28,7 @@ import java.util.function.Function;
  *
  * @param <V> a generic value type that should be reifed by each concrete implementation.
  */
-@ProviderType
+@ConsumerType
 public interface Element<V> {
 
     /**
@@ -44,14 +45,15 @@ public interface Element<V> {
      * @return a {@link net.adamcin.streamsupport.Both} containing the diffed values
      */
     @NotNull
-    Both<V> both();
+    Both<V> values();
 
     /**
+     * Project this element's values into a descendant element.
      *
-     * @param relName
-     * @param newValues
-     * @return
-     * @param <T>
+     * @param relName   the name suffix to append to this name
+     * @param newValues both of the new element's values
+     * @param <T>       the element's value type
+     * @return a new element
      */
     @NotNull
     default <T> Element<T> project(@NotNull Name relName, @NotNull Both<T> newValues) {
@@ -63,14 +65,22 @@ public interface Element<V> {
             }
 
             @Override
-            public @NotNull Both<T> both() {
+            public @NotNull Both<T> values() {
                 return newValues;
             }
         };
     }
 
+    /**
+     * Project this element's values into a descendant element.
+     *
+     * @param relName  the name suffix to append to this name
+     * @param mapperFn a function to map this element's values to produce the new element's values
+     * @param <T>      the element's value type
+     * @return a new element
+     */
     @NotNull
     default <T> Element<T> project(@NotNull Name relName, @NotNull Function<? super V, ? extends T> mapperFn) {
-        return project(relName, both().map(mapperFn::apply));
+        return project(relName, values().map(mapperFn::apply));
     }
 }

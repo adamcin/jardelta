@@ -17,8 +17,8 @@
 package net.adamcin.jardelta.core.osgi.header;
 
 import aQute.bnd.header.Parameters;
-import net.adamcin.jardelta.core.Element;
-import net.adamcin.jardelta.core.Name;
+import net.adamcin.jardelta.api.diff.Element;
+import net.adamcin.jardelta.api.Name;
 import net.adamcin.jardelta.core.manifest.Manifests;
 import net.adamcin.streamsupport.Both;
 import org.jetbrains.annotations.NotNull;
@@ -48,7 +48,7 @@ public class Instructions implements Element<Optional<Parameters>> {
     }
 
     @Override
-    public @NotNull Both<Optional<Parameters>> both() {
+    public @NotNull Both<Optional<Parameters>> values() {
         return values;
     }
 

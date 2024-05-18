@@ -16,59 +16,94 @@
 
 package net.adamcin.jardelta.core.util;
 
-import net.adamcin.jardelta.core.Diff;
-import net.adamcin.jardelta.core.Element;
-import net.adamcin.jardelta.core.Name;
+import net.adamcin.jardelta.api.Name;
+import net.adamcin.jardelta.api.diff.Diff;
+import net.adamcin.jardelta.api.diff.Differ;
+import net.adamcin.jardelta.api.diff.Element;
+import net.adamcin.jardelta.api.diff.Emitter;
 import net.adamcin.streamsupport.Both;
 import net.adamcin.streamsupport.Fun;
 import org.jetbrains.annotations.NotNull;
+import org.osgi.annotation.versioning.ConsumerType;
 
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.function.BiConsumer;
-import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-public final class CompositeDiffer<T> {
-    private final Map<String, BiFunction<Diff.Builder, Element<T>, Stream<Diff>>> differs;
+/**
+ * Aggregates zero-to-many differs of elements and element projections when element structures are more complex.
+ *
+ * @param <V> the type parameter of the element being diffed
+ */
+public final class CompositeDiffer<V> implements Differ<Element<V>> {
 
-    private CompositeDiffer(@NotNull Map<String, BiFunction<Diff.Builder, Element<T>, Stream<Diff>>> differs) {
-        this.differs = differs;
+    /**
+     * A builder of a map of child names to differs, which constitutes the structure of a new
+     * {@link net.adamcin.jardelta.core.util.CompositeDiffer}.
+     *
+     * @param <T> the element value type
+     */
+    @ConsumerType
+    @FunctionalInterface
+    public interface Builder<T> {
+
+        /**
+         * Provide another differ identified by the given {@code childName}.
+         *
+         * @param childName the child segment to append to the base {@link net.adamcin.jardelta.api.diff.Emitter},
+         *                  or {@code ""} to emit for the base name
+         * @param differ    a differ
+         */
+        void put(String childName, Differ<Element<T>> differ);
     }
 
+    /**
+     * Builds a {@link net.adamcin.jardelta.core.util.CompositeDiffer} using the provided {@code builderConsumer}
+     * function, which is given a {@link net.adamcin.jardelta.core.util.CompositeDiffer.Builder}.
+     *
+     * @param builderConsumer the builder consumer function
+     * @param <T>             the {@link net.adamcin.jardelta.api.diff.Element} type parameter
+     * @return a new {@link net.adamcin.jardelta.core.util.CompositeDiffer}
+     */
     @NotNull
-    public Stream<Diff> diff(@NotNull Diff.Builder diffBuilder, @NotNull Element<T> values) {
-        final Diff.Builder ourBuilder = diffBuilder.name().isRoot()
-                ? diffBuilder.child("").named(values.name())
-                : diffBuilder;
-        return differs.entrySet().stream()
-                .flatMap(Fun.mapEntry((key, func) -> func.apply(ourBuilder.child(key), values)));
-    }
-
-    @NotNull
-    public static <T> CompositeDiffer<T> of(@NotNull Consumer<BiConsumer<String, BiFunction<Diff.Builder, Element<T>, Stream<Diff>>>> nextDiff) {
-        Map<String, BiFunction<Diff.Builder, Element<T>, Stream<Diff>>> differs = new TreeMap<>();
-        nextDiff.accept(differs::put);
+    public static <T> CompositeDiffer<T> of(@NotNull Consumer<Builder<T>> builderConsumer) {
+        Map<String, Differ<Element<T>>> differs = new TreeMap<>();
+        builderConsumer.accept(differs::put);
         return new CompositeDiffer<>(differs);
     }
 
+    private final Map<String, Differ<Element<V>>> differs;
+
+    private CompositeDiffer(@NotNull Map<String, Differ<Element<V>>> differs) {
+        this.differs = differs;
+    }
+
+    @Override
     @NotNull
-    public static <T, U> Map.Entry<Diff.Builder, Element<U>> projectChild(@NotNull Diff.Builder parentBuilder,
-                                                                          @NotNull Element<T> element,
-                                                                          @NotNull String childName,
-                                                                          @NotNull Both<U> newValues) {
+    public Stream<Diff> diff(@NotNull Emitter baseEmitter, @NotNull Element<V> values) {
+        final Emitter subEmitter = baseEmitter.forSubElement(values);
+        return differs.entrySet().stream()
+                .flatMap(Fun.mapEntry((key, func) -> func.diff(subEmitter.forChild(key), values)));
+    }
+
+
+    @NotNull
+    public static <T, U> Map.Entry<Emitter, Element<U>> projectChild(@NotNull Emitter parentEmitter,
+                                                                     @NotNull Element<T> element,
+                                                                     @NotNull String childName,
+                                                                     @NotNull Both<U> newValues) {
         final Name segment = Name.ofSegment(childName);
-        return Fun.toEntry(parentBuilder.child(childName), element.project(segment, newValues));
+        return Fun.toEntry(parentEmitter.forChild(childName), element.project(segment, newValues));
     }
 
     @NotNull
-    public static <T, U> Map.Entry<Diff.Builder, Element<U>> projectChild(@NotNull Diff.Builder parentBuilder,
-                                                                          @NotNull Element<T> element,
-                                                                          @NotNull String childName,
-                                                                          @NotNull Function<? super T, ? extends U> mapperFn) {
-        final Both<U> newValues = element.both().map(mapperFn::apply);
-        return projectChild(parentBuilder, element, childName, newValues);
+    public static <T, U> Map.Entry<Emitter, Element<U>> projectChild(@NotNull Emitter parentEmitter,
+                                                                     @NotNull Element<T> element,
+                                                                     @NotNull String childName,
+                                                                     @NotNull Function<? super T, ? extends U> mapperFn) {
+        final Both<U> newValues = element.values().map(mapperFn::apply);
+        return projectChild(parentEmitter, element, childName, newValues);
     }
 }

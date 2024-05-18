@@ -16,9 +16,9 @@
 
 package net.adamcin.jardelta.core.manifest;
 
-import net.adamcin.jardelta.core.Name;
-import net.adamcin.jardelta.core.Element;
-import net.adamcin.jardelta.core.Differ;
+import net.adamcin.jardelta.api.Name;
+import net.adamcin.jardelta.api.diff.Element;
+import net.adamcin.jardelta.api.diff.Differ;
 import net.adamcin.streamsupport.Both;
 import org.jetbrains.annotations.NotNull;
 
@@ -51,7 +51,7 @@ public class MFAttribute implements Element<Optional<String>> {
 
     @Override
     @NotNull
-    public Both<Optional<String>> both() {
+    public Both<Optional<String>> values() {
         return values;
     }
 

@@ -14,26 +14,23 @@
  * limitations under the License.
  */
 
-package net.adamcin.jardelta.core.manifest;
+package net.adamcin.jardelta.core.osgi;
 
-import net.adamcin.jardelta.core.Action;
-import net.adamcin.jardelta.core.Diff;
+import net.adamcin.jardelta.api.jar.OpenJar;
+import net.adamcin.streamsupport.Both;
 import org.jetbrains.annotations.NotNull;
+import org.osgi.framework.Bundle;
 
-public class MFAttributeDiff {
+import java.util.Optional;
 
-    public static Diff ofRawValue(@NotNull String kind, @NotNull MFAttribute diffed) {
-        assert diffed.isDiff();
-        final Diff.Builder diffBuilder = Diff.builder(kind).named(diffed.name());
+public class OsgiUtil {
 
-        Action action;
-        if (diffed.both().left().isEmpty()) {
-            action = Action.ADDED;
-        } else if (diffed.both().right().isEmpty()) {
-            action = Action.REMOVED;
-        } else {
-            action = Action.CHANGED;
+    public static Optional<Both<Bundle>> requireBothBundles(@NotNull Both<OpenJar> openJars) {
+        Both<Optional<Bundle>> bundleAdapters = openJars.mapOptional(jar -> jar.adaptTo(Bundle.class));
+        if (bundleAdapters.testBoth((left, right) -> left.isEmpty() || right.isEmpty())) {
+            return Optional.empty();
         }
-        return diffBuilder.build(action);
+
+        return Optional.of(bundleAdapters.map(Optional::get));
     }
 }

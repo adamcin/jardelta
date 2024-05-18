@@ -16,8 +16,8 @@
 
 package net.adamcin.jardelta.core.osgi.ocd;
 
-import net.adamcin.jardelta.core.Element;
-import net.adamcin.jardelta.core.Name;
+import net.adamcin.jardelta.api.diff.Element;
+import net.adamcin.jardelta.api.Name;
 import net.adamcin.streamsupport.Both;
 import org.jetbrains.annotations.NotNull;
 import org.osgi.service.metatype.ObjectClassDefinition;
@@ -37,7 +37,7 @@ public class MetaTypeOCD implements Element<ObjectClassDefinition> {
     }
 
     @Override
-    public @NotNull Both<ObjectClassDefinition> both() {
+    public @NotNull Both<ObjectClassDefinition> values() {
         return values;
     }
 }

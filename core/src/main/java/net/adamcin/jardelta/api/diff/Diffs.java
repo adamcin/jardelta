@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-package net.adamcin.jardelta.core;
+package net.adamcin.jardelta.api.diff;
 
 import lombok.EqualsAndHashCode;
+import net.adamcin.jardelta.core.Refinement;
 import net.adamcin.streamsupport.Fun;
 import org.jetbrains.annotations.NotNull;
 
@@ -27,12 +28,16 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+/**
+ * A container of diffs.
+ */
 @EqualsAndHashCode
-public final class Diffs {
+public final class Diffs implements FilteredDiffs {
     public static final Diffs EMPTY = new Diffs(Collections.emptySet());
 
     private final Set<Diff> diffs;
@@ -41,19 +46,20 @@ public final class Diffs {
         this.diffs = diffs;
     }
 
+    @Override
     @NotNull
     public Stream<Diff> stream() {
         return diffs.stream();
     }
 
-    @NotNull
-    public Stream<Diff> byKind(@NotNull String kind) {
-        return stream().filter(diff -> kind.equals(diff.getKind()));
+    @Override
+    public boolean isEmpty() {
+        return diffs.isEmpty();
     }
 
-    @NotNull
-    public Stream<Diff> byName(@NotNull Name name) {
-        return stream().filter(diff -> diff.getName().startsWith(name));
+    @Override
+    public @NotNull FilteredDiffs filter(@NotNull Predicate<Diff> predicate) {
+        return new AppliedFilter(this, predicate);
     }
 
     @NotNull
@@ -63,12 +69,8 @@ public final class Diffs {
         } else {
             Set<Diff> refined = new TreeSet<>(this.diffs);
             refined.removeAll(refinements.getSuperseded());
-            return Stream.concat(refined.stream(), refinements.getDiffs().stream()).collect(collect());
+            return Stream.concat(refined.stream(), refinements.getDiffs().stream()).collect(collector());
         }
-    }
-
-    public boolean isEmpty() {
-        return diffs.isEmpty();
     }
 
     @Override
@@ -76,9 +78,35 @@ public final class Diffs {
         return "Diffs[" + stream().map(Diff::toString).collect(Collectors.joining(",")) + "]";
     }
 
+    @EqualsAndHashCode
+    static class AppliedFilter implements FilteredDiffs {
+        private final FilteredDiffs parent;
+        private final Predicate<Diff> predicate;
+
+        AppliedFilter(@NotNull FilteredDiffs parent, @NotNull Predicate<Diff> predicate) {
+            this.parent = parent;
+            this.predicate = predicate;
+        }
+
+        @Override
+        public @NotNull Stream<Diff> stream() {
+            return parent.stream().filter(predicate);
+        }
+
+        @Override
+        public @NotNull FilteredDiffs filter(@NotNull Predicate<Diff> predicate) {
+            return new AppliedFilter(this, predicate);
+        }
+
+        @Override
+        public String toString() {
+            return stringify();
+        }
+    }
+
     @NotNull
     public static Diffs of(Diff... values) {
-        return Stream.of(values).filter(Objects::nonNull).collect(collect());
+        return Stream.of(values).filter(Objects::nonNull).collect(collector());
     }
 
     static final class Accumulator implements Consumer<Diff> {
@@ -119,7 +147,7 @@ public final class Diffs {
      *
      * @return a Diffs collector
      */
-    public static Collector<Diff, ?, Diffs> collect() {
+    public static Collector<Diff, ?, Diffs> collector() {
         return Collector.of(
                 Accumulator::new,
                 Accumulator::accept,

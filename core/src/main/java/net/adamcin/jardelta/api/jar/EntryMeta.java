@@ -14,15 +14,31 @@
  * limitations under the License.
  */
 
-package net.adamcin.jardelta.core;
+package net.adamcin.jardelta.api.jar;
 
+import net.adamcin.jardelta.api.Name;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+import org.osgi.annotation.versioning.ProviderType;
 
-import java.util.stream.Stream;
+import java.util.Set;
 
-@FunctionalInterface
-public interface Differ<T extends Element<?>> {
+/**
+ * Jar Entry Metadata.
+ */
+@ProviderType
+public interface EntryMeta {
+
+    long getLastModified();
+
+    long getSize();
+
+    @Nullable
+    String getExtra();
 
     @NotNull
-    Stream<Diff> diff(@NotNull T diffed);
+    String getSha256();
+
+    @NotNull
+    Set<Name> getAttributeNames();
 }

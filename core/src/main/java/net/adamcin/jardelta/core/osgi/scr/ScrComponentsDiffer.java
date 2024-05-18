@@ -16,8 +16,9 @@
 
 package net.adamcin.jardelta.core.osgi.scr;
 
-import net.adamcin.jardelta.core.Diff;
-import net.adamcin.jardelta.core.Differ;
+import net.adamcin.jardelta.api.diff.Diff;
+import net.adamcin.jardelta.api.diff.Differ;
+import net.adamcin.jardelta.api.diff.Emitter;
 import net.adamcin.jardelta.core.util.CompositeDiffer;
 import net.adamcin.jardelta.core.util.GenericDiffers;
 import org.apache.felix.scr.impl.metadata.ComponentMetadata;
@@ -33,45 +34,46 @@ import java.util.stream.Stream;
 public class ScrComponentsDiffer implements Differ<ScrComponents> {
 
     private final ReferenceMetadatasDiffer referenceMetadatasDiffer = new ReferenceMetadatasDiffer();
-    private final CompositeDiffer<ComponentMetadata> differs = CompositeDiffer.of(nextDiff -> {
-        nextDiff.accept("@activate", (builder, element) ->
-                GenericDiffers.ofOptionals(builder, element.both().mapOptional(ComponentMetadata::getActivate)));
-        nextDiff.accept("@modified", (builder, element) ->
-                GenericDiffers.ofOptionals(builder, element.both().mapOptional(ComponentMetadata::getModified)));
-        nextDiff.accept("@deactivate", (builder, element) ->
-                GenericDiffers.ofOptionals(builder, element.both().mapOptional(ComponentMetadata::getDeactivate)));
-        nextDiff.accept("@factoryIdentifier", (builder, element) ->
-                GenericDiffers.ofOptionals(builder, element.both().mapOptional(ComponentMetadata::getFactoryIdentifier)));
-        nextDiff.accept("@configurationPolicy", (builder, element) ->
-                GenericDiffers.ofOptionals(builder, element.both().mapOptional(ComponentMetadata::getConfigurationPolicy)));
-        nextDiff.accept("@dsVersion", (builder, element) ->
-                GenericDiffers.ofObjectEquality(builder, element.both().map(ComponentMetadata::getDSVersion)));
-        nextDiff.accept("@serviceMetadata", (builder, element) ->
-                GenericDiffers.ofOptionals(builder, element.both().mapOptional(ComponentMetadata::getServiceMetadata), metas ->
+    private final CompositeDiffer<ComponentMetadata> differs = CompositeDiffer.of(builder -> {
+        builder.put("@activate", (emitter, element) ->
+                GenericDiffers.ofOptionals(emitter, element.values().mapOptional(ComponentMetadata::getActivate)));
+        builder.put("@modified", (emitter, element) ->
+                GenericDiffers.ofOptionals(emitter, element.values().mapOptional(ComponentMetadata::getModified)));
+        builder.put("@deactivate", (emitter, element) ->
+                GenericDiffers.ofOptionals(emitter, element.values().mapOptional(ComponentMetadata::getDeactivate)));
+        builder.put("@factoryIdentifier", (emitter, element) ->
+                GenericDiffers.ofOptionals(emitter, element.values().mapOptional(ComponentMetadata::getFactoryIdentifier)));
+        builder.put("@configurationPolicy", (emitter, element) ->
+                GenericDiffers.ofOptionals(emitter, element.values().mapOptional(ComponentMetadata::getConfigurationPolicy)));
+        builder.put("@dsVersion", (emitter, element) ->
+                GenericDiffers.ofObjectEquality(emitter, element.values().map(ComponentMetadata::getDSVersion)));
+        builder.put("@serviceMetadata", (emitter, element) ->
+                GenericDiffers.ofOptionals(emitter, element.values().mapOptional(ComponentMetadata::getServiceMetadata), metas ->
                         Stream.concat(
-                                GenericDiffers.ofObjectEquality(builder.child("@scope"), metas.map(ServiceMetadata::getScope)),
-                                GenericDiffers.ofAllInEitherSet(builder.child("@provides")::child,
+                                GenericDiffers.ofObjectEquality(emitter.forChild("@scope"), metas.map(ServiceMetadata::getScope)),
+                                GenericDiffers.ofAllInEitherSet(emitter.forChild("@provides")::forChild,
                                         metas.map(ServiceMetadata::getProvides).map(List::of))
                         )));
-        nextDiff.accept("@properties", (builder, element) ->
-                GenericDiffers.ofAllInEitherMap(builder::child, element.both().map(ComponentMetadata::getProperties),
-                        (key, props) -> GenericDiffers.ofOptionals(builder.child(key), props)));
-        nextDiff.accept("@factoryProperties", (builder, element) ->
-                GenericDiffers.ofAllInEitherMap(builder::child, element.both().map(ComponentMetadata::getFactoryProperties),
-                        (key, props) -> GenericDiffers.ofOptionals(builder.child(key), props)));
-        nextDiff.accept("@references", (builder, element) ->
-                GenericDiffers.ofAllInEitherMap(builder::child, element.both()
+        builder.put("@properties", (emitter, element) ->
+                GenericDiffers.ofAllInEitherMap(emitter::forChild, element.values().map(ComponentMetadata::getProperties),
+                        GenericDiffers::ofOptionals));
+        builder.put("@factoryProperties", (emitter, element) ->
+                GenericDiffers.ofAllInEitherMap(emitter::forChild, element.values().map(ComponentMetadata::getFactoryProperties),
+                        GenericDiffers::ofOptionals));
+        builder.put("@references", (emitter, element) ->
+                GenericDiffers.ofAllInEitherMap(emitter::forChild, element.values()
                                 .map(ComponentMetadata::getDependencies)
                                 .map(references -> references.stream().collect(Collectors.groupingBy(ReferenceMetadata::getName))),
-                        (key, optMetas) -> GenericDiffers.ofOptionals(builder.child(key), optMetas,
-                                metas -> GenericDiffers.ofAtMostOne(builder.child(key), metas,
-                                        singles -> referenceMetadatasDiffer.diff(new ReferenceMetadatas(Objects.requireNonNull(builder.child(key).name()), singles)))))
+                        (childEmitter, optMetas) -> GenericDiffers.ofOptionals(childEmitter, optMetas,
+                                metas -> GenericDiffers.ofAtMostOne(childEmitter, metas,
+                                        singles -> referenceMetadatasDiffer.diff(childEmitter,
+                                                new ReferenceMetadatas(Objects.requireNonNull(childEmitter.getName()), singles)))))
         );
     });
 
     @Override
-    public @NotNull Stream<Diff> diff(@NotNull ScrComponents diffed) {
-        final Diff.Builder diffBuilder = Diff.builder(ScrRefinementStrategy.KIND).named(diffed.name());
-        return differs.diff(diffBuilder, diffed);
+    public @NotNull Stream<Diff> diff(@NotNull Emitter baseEmitter, @NotNull ScrComponents element) {
+        final Emitter emitter = baseEmitter.forSubElement(element);
+        return differs.diff(emitter, element);
     }
 }

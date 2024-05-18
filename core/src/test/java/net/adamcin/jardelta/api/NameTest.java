@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-package net.adamcin.jardelta.core;
+package net.adamcin.jardelta.api;
 
+import net.adamcin.jardelta.api.Name;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Constructor;

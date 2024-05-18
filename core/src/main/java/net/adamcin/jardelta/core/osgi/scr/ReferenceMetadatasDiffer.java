@@ -16,8 +16,9 @@
 
 package net.adamcin.jardelta.core.osgi.scr;
 
-import net.adamcin.jardelta.core.Diff;
-import net.adamcin.jardelta.core.Differ;
+import net.adamcin.jardelta.api.diff.Diff;
+import net.adamcin.jardelta.api.diff.Differ;
+import net.adamcin.jardelta.api.diff.Emitter;
 import net.adamcin.jardelta.core.util.CompositeDiffer;
 import net.adamcin.jardelta.core.util.GenericDiffers;
 import org.apache.felix.scr.impl.metadata.ReferenceMetadata;
@@ -26,38 +27,38 @@ import org.jetbrains.annotations.NotNull;
 import java.util.stream.Stream;
 
 public class ReferenceMetadatasDiffer implements Differ<ReferenceMetadatas> {
-    private final CompositeDiffer<ReferenceMetadata> differs = CompositeDiffer.of(nextDiff -> {
-        nextDiff.accept("@interface", (builder, element) ->
-                GenericDiffers.ofObjectEquality(builder, element.both().map(ReferenceMetadata::getInterface)));
-        nextDiff.accept("@target", (builder, element) ->
-                GenericDiffers.ofOptionals(builder, element.both().mapOptional(ReferenceMetadata::getTarget)));
-        nextDiff.accept("@bind", (builder, element) ->
-                GenericDiffers.ofOptionals(builder, element.both().mapOptional(ReferenceMetadata::getBind)));
-        nextDiff.accept("@unbind", (builder, element) ->
-                GenericDiffers.ofOptionals(builder, element.both().mapOptional(ReferenceMetadata::getUnbind)));
-        nextDiff.accept("@cardinality", (builder, element) ->
-                GenericDiffers.ofOptionals(builder, element.both().mapOptional(ReferenceMetadata::getCardinality)));
-        nextDiff.accept("@updated", (builder, element) ->
-                GenericDiffers.ofOptionals(builder, element.both().mapOptional(ReferenceMetadata::getUpdated)));
-        nextDiff.accept("@field", (builder, element) ->
-                GenericDiffers.ofOptionals(builder, element.both().mapOptional(ReferenceMetadata::getField)));
-        nextDiff.accept("@fieldOption", (builder, element) ->
-                GenericDiffers.ofOptionals(builder, element.both().mapOptional(ReferenceMetadata::getFieldOption)));
-        nextDiff.accept("@collectionType", (builder, element) ->
-                GenericDiffers.ofOptionals(builder, element.both().mapOptional(ReferenceMetadata::getCollectionType)));
-        nextDiff.accept("@policy", (builder, element) ->
-                GenericDiffers.ofOptionals(builder, element.both().mapOptional(ReferenceMetadata::getPolicy)));
-        nextDiff.accept("@policyOption", (builder, element) ->
-                GenericDiffers.ofOptionals(builder, element.both().mapOptional(ReferenceMetadata::getPolicyOption)));
-        nextDiff.accept("@scope", (builder, element) ->
-                GenericDiffers.ofObjectEquality(builder, element.both().map(ReferenceMetadata::getScope)));
-        nextDiff.accept("@parameter", (builder, element) ->
-                GenericDiffers.ofOptionals(builder, element.both().mapOptional(ReferenceMetadata::getParameterIndex)));
+    private final CompositeDiffer<ReferenceMetadata> differs = CompositeDiffer.of(builder -> {
+        builder.put("@interface", (emitter, element) ->
+                GenericDiffers.ofObjectEquality(emitter, element.values().map(ReferenceMetadata::getInterface)));
+        builder.put("@target", (emitter, element) ->
+                GenericDiffers.ofOptionals(emitter, element.values().mapOptional(ReferenceMetadata::getTarget)));
+        builder.put("@bind", (emitter, element) ->
+                GenericDiffers.ofOptionals(emitter, element.values().mapOptional(ReferenceMetadata::getBind)));
+        builder.put("@unbind", (emitter, element) ->
+                GenericDiffers.ofOptionals(emitter, element.values().mapOptional(ReferenceMetadata::getUnbind)));
+        builder.put("@cardinality", (emitter, element) ->
+                GenericDiffers.ofOptionals(emitter, element.values().mapOptional(ReferenceMetadata::getCardinality)));
+        builder.put("@updated", (emitter, element) ->
+                GenericDiffers.ofOptionals(emitter, element.values().mapOptional(ReferenceMetadata::getUpdated)));
+        builder.put("@field", (emitter, element) ->
+                GenericDiffers.ofOptionals(emitter, element.values().mapOptional(ReferenceMetadata::getField)));
+        builder.put("@fieldOption", (emitter, element) ->
+                GenericDiffers.ofOptionals(emitter, element.values().mapOptional(ReferenceMetadata::getFieldOption)));
+        builder.put("@collectionType", (emitter, element) ->
+                GenericDiffers.ofOptionals(emitter, element.values().mapOptional(ReferenceMetadata::getCollectionType)));
+        builder.put("@policy", (emitter, element) ->
+                GenericDiffers.ofOptionals(emitter, element.values().mapOptional(ReferenceMetadata::getPolicy)));
+        builder.put("@policyOption", (emitter, element) ->
+                GenericDiffers.ofOptionals(emitter, element.values().mapOptional(ReferenceMetadata::getPolicyOption)));
+        builder.put("@scope", (emitter, element) ->
+                GenericDiffers.ofObjectEquality(emitter, element.values().map(ReferenceMetadata::getScope)));
+        builder.put("@parameter", (emitter, element) ->
+                GenericDiffers.ofOptionals(emitter, element.values().mapOptional(ReferenceMetadata::getParameterIndex)));
     });
 
     @Override
-    public @NotNull Stream<Diff> diff(@NotNull ReferenceMetadatas diffed) {
-        final Diff.Builder diffBuilder = Diff.builder(ScrRefinementStrategy.KIND).named(diffed.name());
-        return differs.diff(diffBuilder, diffed);
+    public @NotNull Stream<Diff> diff(@NotNull Emitter baseEmitter, @NotNull ReferenceMetadatas element) {
+        final Emitter emitter = baseEmitter.forSubElement(element);
+        return differs.diff(emitter, element);
     }
 }

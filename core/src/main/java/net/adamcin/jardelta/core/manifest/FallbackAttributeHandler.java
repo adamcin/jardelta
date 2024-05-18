@@ -16,17 +16,17 @@
 
 package net.adamcin.jardelta.core.manifest;
 
-import net.adamcin.jardelta.core.Differ;
+import net.adamcin.jardelta.api.diff.Differ;
+import net.adamcin.jardelta.core.util.GenericDiffers;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.jar.Attributes.Name;
-import java.util.stream.Stream;
 
 public class FallbackAttributeHandler implements AttributeHandler {
     public static final String DIFF_KIND = "manifest";
-    public static final Differ<MFAttribute> ANY_ATTRIBUTE = diffed ->
-            Stream.of(MFAttributeDiff.ofRawValue(DIFF_KIND, diffed));
+    public static final Differ<MFAttribute> ANY_ATTRIBUTE = (emitter, diffed) ->
+            GenericDiffers.ofOptionals(emitter.forSubElement(diffed), diffed.values());
 
     @Override
     public @Nullable Differ<MFAttribute> getDiffer(@NotNull Name attributeName) {

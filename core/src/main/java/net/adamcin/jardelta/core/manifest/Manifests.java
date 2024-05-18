@@ -16,8 +16,8 @@
 
 package net.adamcin.jardelta.core.manifest;
 
-import net.adamcin.jardelta.core.Name;
-import net.adamcin.jardelta.core.Element;
+import net.adamcin.jardelta.api.Name;
+import net.adamcin.jardelta.api.diff.Element;
 import net.adamcin.streamsupport.Both;
 import org.jetbrains.annotations.NotNull;
 
@@ -40,7 +40,7 @@ public class Manifests implements Element<Optional<Manifest>> {
     }
 
     @Override
-    public @NotNull Both<Optional<Manifest>> both() {
+    public @NotNull Both<Optional<Manifest>> values() {
         return values;
     }
 }

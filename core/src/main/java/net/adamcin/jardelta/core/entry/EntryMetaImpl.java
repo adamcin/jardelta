@@ -16,52 +16,60 @@
 
 package net.adamcin.jardelta.core.entry;
 
-import aQute.bnd.osgi.Resource;
-import aQute.libg.cryptography.SHA256;
-import net.adamcin.streamsupport.Fun;
-import net.adamcin.streamsupport.Result;
+import net.adamcin.jardelta.api.Name;
+import net.adamcin.jardelta.api.jar.EntryMeta;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.InputStream;
+import java.util.Collections;
+import java.util.Set;
+import java.util.TreeSet;
 
-public class JarEntryMetadata {
+public final class EntryMetaImpl implements EntryMeta {
     private final long lastModified;
     private final long size;
     private final String extra;
     private final String sha256;
+    private final Set<Name> attributeNames;
 
-    public JarEntryMetadata(long lastModified, long size, @Nullable String extra, @NotNull String sha256) {
+    public EntryMetaImpl(long lastModified,
+                         long size,
+                         @Nullable String extra,
+                         @NotNull String sha256,
+                         @Nullable Set<Name> attributeNames) {
         this.lastModified = lastModified;
         this.size = size;
         this.extra = extra;
         this.sha256 = sha256;
+        this.attributeNames = attributeNames == null
+                ? Collections.emptySet()
+                : Collections.unmodifiableSet(new TreeSet<>(attributeNames));
     }
 
+    @Override
     public long getLastModified() {
         return lastModified;
     }
 
+    @Override
     public long getSize() {
         return size;
     }
 
+    @Override
     @Nullable
     public String getExtra() {
         return extra;
     }
 
+    @Override
     @NotNull
     public String getSha256() {
         return sha256;
     }
 
-    public static Result<JarEntryMetadata> fromResource(@NotNull Resource resource) {
-        return Fun.result0(() -> {
-            try (InputStream inputStream = resource.openInputStream()) {
-                return new JarEntryMetadata(resource.lastModified(), resource.size(), resource.getExtra(),
-                        SHA256.digest(inputStream).asHex());
-            }
-        }).get();
+    @Override
+    public @NotNull Set<Name> getAttributeNames() {
+        return this.attributeNames;
     }
 }

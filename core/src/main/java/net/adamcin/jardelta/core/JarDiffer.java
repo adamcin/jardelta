@@ -16,6 +16,12 @@
 
 package net.adamcin.jardelta.core;
 
+import net.adamcin.jardelta.api.Name;
+import net.adamcin.jardelta.api.diff.Diff;
+import net.adamcin.jardelta.api.diff.Differ;
+import net.adamcin.jardelta.api.diff.Element;
+import net.adamcin.jardelta.api.diff.Emitter;
+import net.adamcin.jardelta.api.jar.OpenJar;
 import net.adamcin.jardelta.core.entry.JarEntry;
 import net.adamcin.jardelta.core.entry.JarEntryDiffer;
 import net.adamcin.streamsupport.Both;
@@ -35,9 +41,9 @@ public class JarDiffer implements Differ<Element<OpenJar>> {
     }
 
     @Override
-    public @NotNull Stream<Diff> diff(@NotNull Element<OpenJar> diffed) {
-        final Both<Map.Entry<OpenJar, Set<Name>>> resources = diffed.both()
-                .map(jar -> Fun.toEntry(jar, jar.getNames()));
+    public @NotNull Stream<Diff> diff(@NotNull Emitter baseEmitter, @NotNull Element<OpenJar> element) {
+        final Both<Map.Entry<OpenJar, Set<Name>>> resources = element.values()
+                .map(jar -> Fun.toEntry(jar, jar.getEntryNames()));
         Set<Name> allNames = resources.map(Map.Entry::getValue).stream()
                 .reduce(new TreeSet<>(), (acc, add) -> {
                     acc.addAll(add);
@@ -47,8 +53,8 @@ public class JarDiffer implements Differ<Element<OpenJar>> {
         final JarEntryDiffer differ = new JarEntryDiffer(settings);
         return allNames.stream()
                 .map(resourceName -> new JarEntry(resourceName,
-                        resources.map(entry -> entry.getKey().getResourceMetadata(resourceName))))
-                .flatMap(differ::diff);
+                        resources.map(entry -> entry.getKey().getEntryMeta(resourceName))))
+                .flatMap(entry -> differ.diff(baseEmitter, entry));
     }
 
 }

@@ -19,7 +19,11 @@ package net.adamcin.jardelta.core;
 import aQute.bnd.osgi.FileResource;
 import aQute.bnd.osgi.Jar;
 import aQute.bnd.osgi.Resource;
-import net.adamcin.jardelta.core.entry.JarEntryMetadata;
+import aQute.libg.cryptography.SHA256;
+import net.adamcin.jardelta.api.Name;
+import net.adamcin.jardelta.api.jar.EntryMeta;
+import net.adamcin.jardelta.api.jar.OpenJar;
+import net.adamcin.jardelta.core.entry.EntryMetaImpl;
 import net.adamcin.streamsupport.Fun;
 import net.adamcin.streamsupport.Result;
 import org.jetbrains.annotations.NotNull;
@@ -27,8 +31,8 @@ import org.jetbrains.annotations.Nullable;
 import org.osgi.framework.Bundle;
 
 import java.io.Closeable;
-import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Path;
@@ -36,25 +40,25 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.jar.Attributes;
 import java.util.jar.Manifest;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-import static net.adamcin.streamsupport.Fun.mapEntry;
 import static net.adamcin.streamsupport.Fun.result0;
 import static net.adamcin.streamsupport.Fun.uncheck0;
 
-public class OpenJar implements Closeable {
+public class OpenJarImpl implements OpenJar, Closeable {
     private final Jar jar;
     private final Set<Name> names;
     private final Set<Name> dirNames;
+    private final Map<Name, Set<Name>> entryAttributeNames;
     private final Manifest manifest;
     private final Bundle bundleFacade;
-    private final Map<Name, Result<JarEntryMetadata>> resourceCache;
+    private final Map<Name, Result<EntryMeta>> resourceCache;
 
-    private OpenJar(@NotNull Jar jar, @NotNull Map<Name, Result<JarEntryMetadata>> resourceCache) {
+    private OpenJarImpl(@NotNull Jar jar, @NotNull Map<Name, Result<EntryMeta>> resourceCache) {
         this.resourceCache = resourceCache;
         this.jar = jar;
         this.names = this.jar.getResources().keySet().stream()
@@ -64,7 +68,25 @@ public class OpenJar implements Closeable {
                 .map(Name::of)
                 .collect(Collectors.toCollection(TreeSet::new));
         this.manifest = result0(jar::getManifest).get().getOrDefault(null);
+        this.entryAttributeNames = Stream.ofNullable(manifest)
+                .flatMap(manny -> manny.getEntries().entrySet().stream())
+                .map(Fun.mapKey(Name::of))
+                .map(Fun.mapValue(attrs -> attrs.keySet().stream()
+                        .map(Objects::toString)
+                        .map(Name::of)
+                        .collect(Collectors.toCollection(TreeSet::new))))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
         this.bundleFacade = new BundleFacade(this);
+    }
+
+    public static Result<EntryMeta> fromResource(@NotNull Resource resource,
+                                                 @Nullable Set<Name> attributeNames) {
+        return result0(() -> {
+            try (InputStream inputStream = resource.openInputStream()) {
+                return (EntryMeta) new EntryMetaImpl(resource.lastModified(), resource.size(), resource.getExtra(),
+                        SHA256.digest(inputStream).asHex(), attributeNames);
+            }
+        }).get();
     }
 
     public String getVersion() {
@@ -79,27 +101,36 @@ public class OpenJar implements Closeable {
         return jar.lastModified();
     }
 
-    public Set<Name> getNames() {
+    @Override
+    public Set<Name> getEntryNames() {
         return Set.copyOf(names);
     }
 
+    @Override
     public Set<Name> getDirNames() {
         return Set.copyOf(dirNames);
     }
 
-    public Optional<Result<JarEntryMetadata>> getResourceMetadata(@NotNull Name name) {
+    @Override
+    public Set<Name> getEntryAttributeNames(@NotNull Name name) {
+        return Optional.ofNullable(entryAttributeNames.get(name)).map(Set::copyOf).orElse(null);
+    }
+
+    @Override
+    public Optional<Result<EntryMeta>> getEntryMeta(@NotNull Name name) {
         return names.contains(name) ? Optional.of(resourceCache.computeIfAbsent(name, namePath -> {
             final String nameString = namePath.toString();
             return Optional.ofNullable(jar.getResource(nameString))
                     .map(Result::success)
                     .orElseGet(() -> Result.failure(new NullPointerException("no resource for name " + nameString)))
-                    .flatMap(JarEntryMetadata::fromResource);
+                    .flatMap(resource -> OpenJarImpl.fromResource(resource, getEntryAttributeNames(name)));
         })) : Optional.empty();
     }
 
+    @Override
     @Nullable
     public Manifest getManifest() {
-        return manifest;
+        return Optional.ofNullable(manifest).map(Manifest::new).orElse(null);
     }
 
     URL jarUrl() throws MalformedURLException {
@@ -115,11 +146,23 @@ public class OpenJar implements Closeable {
                 ? resourceName.substring(1) : resourceName))).get();
     }
 
+    @Override
     @Nullable
     public String getMainAttributeValue(final @NotNull Name attribute) {
         return Optional.ofNullable(getManifest())
                 .flatMap(manny ->
                         result0(() -> manny.getMainAttributes()
+                                .getValue(attribute.getSegment()))
+                                .get().toOptional())
+                .orElse(null);
+    }
+
+    @Override
+    public @Nullable String getEntryAttributeValue(@NotNull Name entryName, @NotNull Name attribute) {
+        return Optional.ofNullable(getManifest())
+                .flatMap(manny ->
+                        result0(() -> Optional.ofNullable(manny.getAttributes(entryName.toString()))
+                                .orElse(manny.getMainAttributes())
                                 .getValue(attribute.getSegment()))
                                 .get().toOptional())
                 .orElse(null);
@@ -148,15 +191,24 @@ public class OpenJar implements Closeable {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
+    public <T> @Nullable T adaptTo(@NotNull Class<T> adapter) {
+        if (Bundle.class.equals(adapter) && isBundle()) {
+            return (T) getBundle();
+        }
+        return null;
+    }
+
+    @Override
     public void close() throws IOException {
         this.jar.close();
     }
 
     @NotNull
-    public static OpenJar fromFile(@Nullable String name,
-                                   @NotNull Path path,
-                                   @NotNull Map<Name, Result<JarEntryMetadata>> resourceCache) throws Exception {
-        return new OpenJar(Jar.fromResource(name, new FileResource(path)), resourceCache);
+    public static OpenJarImpl fromFile(@Nullable String name,
+                                       @NotNull Path path,
+                                       @NotNull Map<Name, Result<EntryMeta>> resourceCache) throws Exception {
+        return new OpenJarImpl(Jar.fromResource(name, new FileResource(path)), resourceCache);
     }
 
 }

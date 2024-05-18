@@ -16,13 +16,27 @@
 
 package net.adamcin.jardelta.core;
 
+import net.adamcin.jardelta.api.Kind;
+import net.adamcin.jardelta.api.diff.Diffs;
+import net.adamcin.jardelta.api.diff.Element;
+import net.adamcin.jardelta.api.jar.OpenJar;
 import org.jetbrains.annotations.NotNull;
+import org.osgi.annotation.versioning.ConsumerType;
 
 /**
  * A strategy representing a subsequent phase of differentiation between the two jars, usually based on more specific
  * application assumptions, like Manifest attribute semantics or parsing of OSGI MetaType resources.
  */
+@ConsumerType
 public interface RefinementStrategy {
+
+    /**
+     * Get the kind of diffs that this strategy emits.
+     *
+     * @return the kind of diffs emitted by this strategy
+     */
+    @NotNull
+    Kind getKind();
 
     /**
      * Execute a new diff starting with the provided context, based on the resulting diffs from prior diff phases.
@@ -32,5 +46,5 @@ public interface RefinementStrategy {
      * @return a {@link Refinement}
      */
     @NotNull
-    Refinement refine(@NotNull Context context, @NotNull Diffs diffs, @NotNull Element<OpenJar> openJars) throws Exception;
+    Refinement refine(@NotNull Context context, @NotNull Diffs diffs, @NotNull Element<OpenJar> openJars);
 }

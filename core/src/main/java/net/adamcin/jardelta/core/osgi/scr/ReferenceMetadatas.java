@@ -16,8 +16,8 @@
 
 package net.adamcin.jardelta.core.osgi.scr;
 
-import net.adamcin.jardelta.core.Element;
-import net.adamcin.jardelta.core.Name;
+import net.adamcin.jardelta.api.diff.Element;
+import net.adamcin.jardelta.api.Name;
 import net.adamcin.streamsupport.Both;
 import org.apache.felix.scr.impl.metadata.ReferenceMetadata;
 import org.jetbrains.annotations.NotNull;
@@ -37,7 +37,7 @@ public class ReferenceMetadatas implements Element<ReferenceMetadata> {
     }
 
     @Override
-    public @NotNull Both<ReferenceMetadata> both() {
+    public @NotNull Both<ReferenceMetadata> values() {
         return values;
     }
 }

@@ -14,35 +14,27 @@
  * limitations under the License.
  */
 
-package net.adamcin.jardelta.core.entry;
+package net.adamcin.jardelta.api.jar;
 
 import net.adamcin.jardelta.api.Name;
-import net.adamcin.jardelta.api.diff.Element;
-import net.adamcin.jardelta.api.jar.EntryMeta;
-import net.adamcin.streamsupport.Both;
 import net.adamcin.streamsupport.Result;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Optional;
+import java.util.Set;
+import java.util.jar.Manifest;
 
-public class JarEntry implements Element<Optional<Result<EntryMeta>>> {
-
-    private final Name name;
-    private final Both<Optional<Result<EntryMeta>>> values;
-
-    public JarEntry(@NotNull Name name,
-                    @NotNull Both<Optional<Result<EntryMeta>>> values) {
-        this.name = name;
-        this.values = values;
-    }
-
-    @Override
-    public @NotNull Name name() {
-        return name;
-    }
-
-    @Override
-    public @NotNull Both<Optional<Result<EntryMeta>>> values() {
-        return values;
-    }
+/**
+ * Having opened a jar file, this type provides access to the names and entries that it contains.
+ */
+public interface OpenJar {
+    Set<Name> getEntryNames();
+    Set<Name> getDirNames();
+    Optional<Result<EntryMeta>> getEntryMeta(@NotNull Name name);
+    @Nullable Manifest getManifest();
+    @Nullable String getMainAttributeValue(@NotNull Name attribute);
+    @Nullable Set<Name> getEntryAttributeNames(@NotNull Name name);
+    @Nullable String getEntryAttributeValue(@NotNull Name entryName, @NotNull Name attribute);
+    <T> @Nullable T adaptTo(@NotNull Class<T> adapter);
 }
