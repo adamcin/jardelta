@@ -41,6 +41,7 @@ import java.util.stream.Stream;
  * provided lambdas for non-generic type handling when the containers are otherwise identical.
  */
 public final class GenericDiffers {
+    static final String ERROR_AT_MOST_ONE = "unexpected plurality";
 
     /**
      * Compare both objects, returning {@link java.util.stream.Stream#empty()} when {@code equalityTest} returns true,
@@ -98,16 +99,12 @@ public final class GenericDiffers {
             @NotNull Both<Optional<T>> values,
             @NotNull Function<Both<T>, Stream<Diff>> ifBothPresent) {
         if (values.left().isEmpty()) {
-            if (values.right().isPresent()) {
-                return Stream.of(emitter.added(values.right().map(Objects::toString).orElse("")));
-            }
-            // empty-empty case, falls through to Stream.empty()
+            return values.right().stream().map(value -> emitter.added(Objects.toString(value)));
         } else if (values.right().isEmpty()) {
-            return Stream.of(emitter.removed(values.left().map(Objects::toString).orElse("")));
+            return values.left().stream().map(value -> emitter.removed(Objects.toString(value)));
         } else {
             return ifBothPresent.apply(values.map(Optional::get));
         }
-        return Stream.empty();
     }
 
     /**
@@ -153,6 +150,26 @@ public final class GenericDiffers {
     }
 
     /**
+     * Compare both results, delegating present-present to
+     * {@link #ofObjectEquality(net.adamcin.jardelta.api.diff.Emitter, net.adamcin.streamsupport.Both)} for
+     * success-success, while returning {@link net.adamcin.jardelta.api.diff.Action#ERR_LEFT},
+     * {@link net.adamcin.jardelta.api.diff.Action#ERR_RIGHT}, or both, for failure-success, success-failure, and
+     * failure-failure, respectively.
+     *
+     * @param emitter a diff builder
+     * @param values  both values
+     * @param <T>     the type parameter of the Result values
+     * @return the diff stream
+     * @see #ofResults(net.adamcin.jardelta.api.diff.Emitter, net.adamcin.streamsupport.Both, java.util.function.Function)
+     */
+    @NotNull
+    public static <T> Stream<Diff> ofResults(
+            @NotNull Emitter emitter,
+            @NotNull Both<Result<T>> values) {
+        return ofResults(emitter, values, successes -> ofObjectEquality(emitter, successes));
+    }
+
+    /**
      * Compare both iterables based on cardinality, where only one comparable value is expected. Cases of zero-one,
      * one-zero, and one-one are mapped to {@link net.adamcin.streamsupport.Result#success(Object)}, while a many
      * cardinality on either side is mapped to a respective {@link net.adamcin.streamsupport.Result#failure(String)}.
@@ -180,7 +197,7 @@ public final class GenericDiffers {
                 T first = iter.next();
                 // map to failure if there is a second
                 if (iter.hasNext()) {
-                    return Result.failure("more than one element is present");
+                    return Result.failure(ERROR_AT_MOST_ONE);
                 } else {
                     return Result.success(Optional.ofNullable(first));
                 }
@@ -212,6 +229,22 @@ public final class GenericDiffers {
     }
 
     /**
+     * An internal utility function that serves as both a reducer and combiner for a stream of collections reduced to a
+     * single collection of a possibly different type.
+     *
+     * @param left  the accumulator or left-hand binary operand
+     * @param right the next stream collection element or the right-hand binary operand
+     * @param <T>   the element type of the collections
+     * @param <C>   the type of the returned accumulator collection
+     * @param <D>   the type of the streamed collections
+     * @return a union collection
+     */
+    static <T, C extends Collection<T>, D extends Collection<T>> C combineCollections(C left, D right) {
+        left.addAll(right);
+        return left;
+    }
+
+    /**
      * Compare both collections by iterating over a set union of their elements, returning
      * {@link net.adamcin.jardelta.api.diff.Action#ADDED} for !contains-contains,
      * {@link net.adamcin.jardelta.api.diff.Action#REMOVED} for contains-!contains, and delegating to the provided
@@ -228,15 +261,10 @@ public final class GenericDiffers {
     public static <T> Stream<Diff> ofAllInEitherSet(
             @NotNull Function<? super T, Emitter> emitterFactory,
             @NotNull Both<? extends Collection<T>> bothSets,
-            @NotNull Supplier<Set<T>> setSupplier,
-            @NotNull BiFunction<Emitter, T, Stream<Diff>> ifIntersection) {
-        final Set<T> allValues = bothSets.stream().reduce(setSupplier.get(), (acc, next) -> {
-            acc.addAll(next);
-            return acc;
-        }, (first, second) -> {
-            first.addAll(second);
-            return first;
-        });
+            @NotNull Supplier<? extends Set<T>> setSupplier,
+            @NotNull BiFunction<Emitter, ? super T, Stream<Diff>> ifIntersection) {
+        final Set<T> allValues = bothSets.stream().reduce(setSupplier.get(),
+                GenericDiffers::combineCollections, GenericDiffers::combineCollections);
 
         Stream<Diff> stream = Stream.empty();
         for (T value : allValues) {
@@ -245,7 +273,7 @@ public final class GenericDiffers {
                 if (bothSets.right().contains(value)) {
                     stream = Stream.concat(stream, Stream.of(childEmitter.added()));
                 }
-                // empty-empty case, falls through to Stream.empty()
+                // empty-empty case, leave stream unmodified
             } else if (!bothSets.right().contains(value)) {
                 stream = Stream.concat(stream, Stream.of(childEmitter.removed()));
             } else {
@@ -275,7 +303,7 @@ public final class GenericDiffers {
     public static <T> Stream<Diff> ofAllInEitherSet(
             @NotNull Function<? super T, Emitter> emitterFactory,
             @NotNull Both<? extends Collection<T>> bothSets,
-            @NotNull BiFunction<Emitter, T, Stream<Diff>> ifIntersection) {
+            @NotNull BiFunction<Emitter, ? super T, Stream<Diff>> ifIntersection) {
         return ofAllInEitherSet(emitterFactory, bothSets, TreeSet::new, ifIntersection);
     }
 
@@ -319,8 +347,8 @@ public final class GenericDiffers {
     public static <T> Stream<Diff> ofAllInEitherSet(
             @NotNull Emitter emitter,
             @NotNull Both<? extends Collection<T>> bothSets,
-            @NotNull Supplier<Set<T>> setSupplier,
-            @NotNull BiFunction<Emitter, T, Stream<Diff>> ifIntersection) {
+            @NotNull Supplier<? extends Set<T>> setSupplier,
+            @NotNull BiFunction<Emitter, ? super T, Stream<Diff>> ifIntersection) {
         return ofAllInEitherSet(element -> emitter, bothSets, setSupplier, ifIntersection);
     }
 
@@ -345,7 +373,7 @@ public final class GenericDiffers {
     public static <T> Stream<Diff> ofAllInEitherSet(
             @NotNull Emitter emitter,
             @NotNull Both<? extends Collection<T>> bothSets,
-            @NotNull BiFunction<Emitter, T, Stream<Diff>> ifIntersection) {
+            @NotNull BiFunction<Emitter, ? super T, Stream<Diff>> ifIntersection) {
         return ofAllInEitherSet(element -> emitter, bothSets, ifIntersection);
     }
 
@@ -389,7 +417,7 @@ public final class GenericDiffers {
     public static <K, V> Stream<Diff> ofAllInEitherMap(
             @NotNull Function<? super K, Emitter> emitterFactory,
             @NotNull Both<? extends Map<K, V>> bothMaps,
-            @NotNull Supplier<Set<K>> setSupplier,
+            @NotNull Supplier<? extends Set<K>> setSupplier,
             @NotNull BiFunction<Emitter, Both<Optional<V>>, Stream<Diff>> ifIntersection) {
         return ofAllInEitherSet(emitterFactory, bothMaps.map(Map::keySet), setSupplier,
                 (emitter, key) -> ifIntersection.apply(emitter, bothMaps.mapOptional(map -> map.get(key))));
@@ -461,7 +489,7 @@ public final class GenericDiffers {
     public static <K, V> Stream<Diff> ofAllInEitherMap(
             @NotNull Emitter emitter,
             @NotNull Both<? extends Map<K, V>> bothMaps,
-            @NotNull Supplier<Set<K>> setSupplier,
+            @NotNull Supplier<? extends Set<K>> setSupplier,
             @NotNull BiFunction<Emitter, Both<Optional<V>>, Stream<Diff>> ifIntersection) {
         return ofAllInEitherMap(key -> emitter, bothMaps, setSupplier, ifIntersection);
     }

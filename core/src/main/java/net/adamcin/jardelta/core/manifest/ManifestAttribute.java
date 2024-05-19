@@ -18,7 +18,6 @@ package net.adamcin.jardelta.core.manifest;
 
 import net.adamcin.jardelta.api.Name;
 import net.adamcin.jardelta.api.diff.Element;
-import net.adamcin.jardelta.api.diff.Differ;
 import net.adamcin.streamsupport.Both;
 import org.jetbrains.annotations.NotNull;
 
@@ -26,16 +25,13 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.jar.Attributes;
 
-public class MFAttribute implements Element<Optional<String>> {
+public class ManifestAttribute implements Element<Optional<String>> {
     private final @NotNull Name name;
-    private final @NotNull Differ<MFAttribute> differ;
     private final @NotNull Both<Optional<String>> values;
 
-    public MFAttribute(@NotNull Name name,
-                       @NotNull Differ<MFAttribute> differ,
-                       @NotNull Both<Optional<String>> values) {
+    public ManifestAttribute(@NotNull Name name,
+                             @NotNull Both<Optional<String>> values) {
         this.name = name;
-        this.differ = differ;
         this.values = values;
     }
 
@@ -44,19 +40,9 @@ public class MFAttribute implements Element<Optional<String>> {
         return name;
     }
 
-    @NotNull
-    public Differ<MFAttribute> getDiffer() {
-        return differ;
-    }
-
     @Override
     @NotNull
     public Both<Optional<String>> values() {
-        return values;
-    }
-
-    @NotNull
-    public Both<Optional<String>> formatted() {
         return values;
     }
 

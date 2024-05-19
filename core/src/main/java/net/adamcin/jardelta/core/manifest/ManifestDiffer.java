@@ -48,7 +48,7 @@ public class ManifestDiffer implements Differ<Manifests> {
     }
 
     @NotNull
-    Stream<Diff> diffAttributes(@NotNull Emitter emitter, @NotNull Both<Attributes> bothAttributes) {
+    Stream<Diff> diffAttributes(@NotNull Emitter baseEmitter, @NotNull Both<Attributes> bothAttributes) {
         final Set<Attributes.Name> allNames = bothAttributes
                 .stream()
                 .flatMap(Fun.compose1(Attributes::keySet, Set::stream))
@@ -57,11 +57,12 @@ public class ManifestDiffer implements Differ<Manifests> {
                 .collect(Collectors.toSet());
 
         return allNames.stream()
-                .map(name -> new MFAttribute(Manifests.NAME_MANIFEST.appendSegment(name.toString()),
-                        FallbackAttributeHandler.ANY_ATTRIBUTE,
-                        bothAttributes.mapOptional(attributes -> attributes.getValue(name))))
-                .filter(MFAttribute::isDiff)
-                .flatMap(diffable -> diffable.getDiffer().diff(emitter, diffable));
+                .flatMap(name -> {
+                    ManifestAttribute diffed = new ManifestAttribute(
+                            Manifests.NAME_MANIFEST.appendSegment(name.toString()),
+                            bothAttributes.mapOptional(attributes -> attributes.getValue(name)));
+                    return GenericDiffers.ofOptionals(baseEmitter.forSubElement(diffed), diffed.values());
+                });
     }
 
 }

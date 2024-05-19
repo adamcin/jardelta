@@ -58,7 +58,6 @@ class ManifestDifferTest {
                 .findFirst().map(Diff::getHints).flatMap(Both::left));
     }
 
-
     @Test
     void diff_none() {
         final ManifestDiffer differ = new ManifestDiffer();
@@ -160,6 +159,40 @@ class ManifestDifferTest {
                 .ofSubKind(Kind.of("entry"))
                 .forChild("{entry:testEntry/}")
                 .added());
+        Optional<Diff> actual = differ
+                .diff(baseEmitter, new Manifests(Both.ofNullables(left, right)))
+                .findFirst();
+        assertEquals(expected, actual);
+    }
+
+    @Test
+    void diff_entryAttr_removed() {
+        final ManifestDiffer differ = new ManifestDiffer();
+        Manifest left = mapManifest(Map.of("Class-Path", "."));
+        Manifest right = mapManifest(Map.of("Class-Path", "."));
+        putEntry(left, "testEntry/", Map.of("Sealed", "true"));
+        Optional<Diff> expected = Optional.of(manifestEmitter
+                .ofSubKind(Kind.of("entry"))
+                .forChild("{entry:testEntry/}")
+                .removed());
+        Optional<Diff> actual = differ
+                .diff(baseEmitter, new Manifests(Both.ofNullables(left, right)))
+                .findFirst();
+        assertEquals(expected, actual);
+    }
+
+    @Test
+    void diff_entryAttr_changed() {
+        final ManifestDiffer differ = new ManifestDiffer();
+        Manifest left = mapManifest(Map.of("Class-Path", "."));
+        Manifest right = mapManifest(Map.of("Class-Path", "."));
+        putEntry(left, "testEntry/", Map.of("Sealed", "true"));
+        putEntry(right, "testEntry/", Map.of("Sealed", "false"));
+        Optional<Diff> expected = Optional.of(manifestEmitter
+                .ofSubKind(Kind.of("entry"))
+                .forChild("{entry:testEntry/}")
+                .forChild("Sealed")
+                .changed(Both.of("true", "false")));
         Optional<Diff> actual = differ
                 .diff(baseEmitter, new Manifests(Both.ofNullables(left, right)))
                 .findFirst();
