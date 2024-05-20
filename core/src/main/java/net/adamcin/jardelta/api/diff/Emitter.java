@@ -69,7 +69,7 @@ public interface Emitter {
     Emitter forName(@NotNull Name name);
 
     /**
-     * Emit a diff for an {@link net.adamcin.jardelta.api.diff.Action#ADDED} action.
+     * Emit a diff for an {@link Verb#ADDED} action.
      *
      * @return an ADDED diff
      */
@@ -77,7 +77,7 @@ public interface Emitter {
     Diff added();
 
     /**
-     * Emit a diff for an {@link net.adamcin.jardelta.api.diff.Action#ADDED} action.
+     * Emit a diff for an {@link Verb#ADDED} action.
      *
      * @param hint a hint of the added value
      * @return an ADDED diff
@@ -88,7 +88,7 @@ public interface Emitter {
     }
 
     /**
-     * Emit a diff for a {@link net.adamcin.jardelta.api.diff.Action#REMOVED} action.
+     * Emit a diff for a {@link Verb#REMOVED} action.
      *
      * @return a REMOVED diff
      */
@@ -96,7 +96,7 @@ public interface Emitter {
     Diff removed();
 
     /**
-     * Emit a diff for a {@link net.adamcin.jardelta.api.diff.Action#REMOVED} action.
+     * Emit a diff for a {@link Verb#REMOVED} action.
      *
      * @param hint a hint of the removed value
      * @return a REMOVED diff
@@ -107,7 +107,7 @@ public interface Emitter {
     }
 
     /**
-     * Emit a diff for a {@link net.adamcin.jardelta.api.diff.Action#CHANGED} action.
+     * Emit a diff for a {@link Verb#CHANGED} action.
      *
      * @return a CHANGED diff
      */
@@ -115,7 +115,7 @@ public interface Emitter {
     Diff changed();
 
     /**
-     * Emit a diff for a {@link net.adamcin.jardelta.api.diff.Action#CHANGED} action.
+     * Emit a diff for a {@link Verb#CHANGED} action.
      *
      * @param hints both hints of the divergent values
      * @return a CHANGED diff
@@ -126,7 +126,7 @@ public interface Emitter {
     }
 
     /**
-     * Emit a diff for an {@link net.adamcin.jardelta.api.diff.Action#ERR_LEFT} action.
+     * Emit a diff for an {@link Verb#ERR_LEFT} action.
      *
      * @param failure the failed result for logging
      * @return an ERR_LEFT diff
@@ -135,7 +135,7 @@ public interface Emitter {
     Diff errLeft(@NotNull Result<?> failure);
 
     /**
-     * Emit a diff for an {@link net.adamcin.jardelta.api.diff.Action#ERR_RIGHT} action.
+     * Emit a diff for an {@link Verb#ERR_RIGHT} action.
      *
      * @param failure the failed result for logging
      * @return an ERR_RIGHT diff

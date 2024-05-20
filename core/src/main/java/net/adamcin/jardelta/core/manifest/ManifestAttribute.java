@@ -19,11 +19,15 @@ package net.adamcin.jardelta.core.manifest;
 import net.adamcin.jardelta.api.Name;
 import net.adamcin.jardelta.api.diff.Element;
 import net.adamcin.streamsupport.Both;
+import net.adamcin.streamsupport.Fun;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Predicate;
 import java.util.jar.Attributes;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class ManifestAttribute implements Element<Optional<String>> {
     private final @NotNull Name name;
@@ -52,5 +56,18 @@ public class ManifestAttribute implements Element<Optional<String>> {
 
     public static Attributes.Name nameOf(@NotNull String name) {
         return new Attributes.Name(name);
+    }
+
+    public static Attributes attributeSet(@NotNull String... names) {
+        return Stream.of(names).map(ManifestAttribute::nameOf).collect(
+                Collectors.toMap(
+                        Object.class::cast,
+                        Fun.compose1(Fun.infer1(Attributes.Name::toString), Object.class::cast),
+                        (left, right) -> left,
+                        Attributes::new));
+    }
+
+    public static Predicate<String> inAttributeSet(@NotNull Attributes attributeSet) {
+        return name -> attributeSet.containsKey(nameOf(name));
     }
 }

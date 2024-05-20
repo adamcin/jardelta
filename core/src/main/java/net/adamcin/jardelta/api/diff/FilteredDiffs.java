@@ -59,15 +59,15 @@ public interface FilteredDiffs {
         return filter(diff -> diff.getName().equals(name));
     }
 
-    default @NotNull FilteredDiffs withActions(@NotNull Action... actions) {
-        if (actions.length == 0) {
+    default @NotNull FilteredDiffs withActions(@NotNull Verb... verbs) {
+        if (verbs.length == 0) {
             return filter(diff -> false);
-        } else if (actions.length == 1) {
-            Action action = actions[0];
-            return filter(diff -> diff.getAction().equals(action));
+        } else if (verbs.length == 1) {
+            Verb verb = verbs[0];
+            return filter(diff -> diff.getVerb().equals(verb));
         } else {
-            final Set<Action> actionSet = new TreeSet<>(List.of(actions));
-            return filter(Fun.composeTest1(Diff::getAction, Fun.inSet(actionSet)));
+            final Set<Verb> verbSet = new TreeSet<>(List.of(verbs));
+            return filter(Fun.composeTest1(Diff::getVerb, Fun.inSet(verbSet)));
         }
     }
 

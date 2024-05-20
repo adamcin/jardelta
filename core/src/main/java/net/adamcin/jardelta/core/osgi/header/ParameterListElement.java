@@ -23,15 +23,15 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.Optional;
 
-public class Parameter implements Element<Optional<ParameterList>> {
+public class ParameterListElement implements Element<Optional<ParameterList>> {
 
     private final Name parentName;
     private final String key;
     private final Both<Optional<ParameterList>> values;
 
-    public Parameter(@NotNull Name parentName,
-                     @NotNull String key,
-                     @NotNull Both<Optional<ParameterList>> values) {
+    public ParameterListElement(@NotNull Name parentName,
+                                @NotNull String key,
+                                @NotNull Both<Optional<ParameterList>> values) {
         this.parentName = parentName;
         this.key = key;
         this.values = values;

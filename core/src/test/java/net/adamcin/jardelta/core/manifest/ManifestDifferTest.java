@@ -31,7 +31,7 @@ import java.util.jar.Manifest;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ManifestDifferTest {
-    private final Emitter baseEmitter = Diff.emitterOf(ManifestDiffer.DIFF_KIND);
+    private final Emitter baseEmitter = Diff.emitterOf(ManifestRefinementStrategy.DIFF_KIND);
     private final Emitter manifestEmitter = baseEmitter.forName(Manifests.NAME_MANIFEST);
 
     @Test

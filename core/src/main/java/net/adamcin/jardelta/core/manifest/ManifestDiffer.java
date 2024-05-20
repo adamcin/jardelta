@@ -32,19 +32,17 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class ManifestDiffer implements Differ<Manifests> {
-    public static final Kind DIFF_KIND = Kind.of("manifest");
 
     @Override
     public @NotNull Stream<Diff> diff(@NotNull Emitter baseEmitter, @NotNull Manifests element) {
-        final Emitter emitter = baseEmitter.forSubElement(element);
-        return GenericDiffers.ofOptionals(emitter, element.values(), values -> Stream.concat(
-                diffAttributes(emitter, values.map(Manifest::getMainAttributes)),
-                GenericDiffers.ofAllInEitherMap(entryName -> emitter
-                                .ofSubKind(Kind.of("entry"))
-                                .forChild(String.format("{entry:%s}", entryName)), values.map(Manifest::getEntries),
-                        (childEmitter, optAttrs) ->
-                                GenericDiffers.ofOptionals(childEmitter, optAttrs,
-                                        bothAttrs -> diffAttributes(childEmitter, bothAttrs)))));
+        return GenericDiffers.ofOptionals(baseEmitter.forSubElement(element), element.values(),
+                (emitter, values) -> Stream.concat(
+                        diffAttributes(emitter, values.map(Manifest::getMainAttributes)),
+                        GenericDiffers.ofAllInEitherMap(entryName -> emitter
+                                        .ofSubKind(Kind.of("entry"))
+                                        .forChild(String.format("{entry:%s}", entryName)), values.map(Manifest::getEntries),
+                                (childEmitter, optAttrs) ->
+                                        GenericDiffers.ofOptionals(childEmitter, optAttrs, this::diffAttributes))));
     }
 
     @NotNull

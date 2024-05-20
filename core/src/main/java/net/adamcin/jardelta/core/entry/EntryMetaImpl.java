@@ -72,4 +72,9 @@ public final class EntryMetaImpl implements EntryMeta {
     public @NotNull Set<Name> getAttributeNames() {
         return this.attributeNames;
     }
+
+    @Override
+    public String toString() {
+        return "sha256:" + sha256;
+    }
 }

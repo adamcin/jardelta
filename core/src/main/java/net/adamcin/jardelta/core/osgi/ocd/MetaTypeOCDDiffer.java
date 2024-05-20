@@ -56,8 +56,8 @@ public class MetaTypeOCDDiffer implements Differ<MetaTypeOCD> {
         return Stream.concat(ocdElementDiffs, GenericDiffers.ofAllInEitherMap(emitter::forChild, bothAttributeDefinitions,
                 (childEmitter, bothLists) ->
                         GenericDiffers.ofAtMostOne(childEmitter, bothLists.map(Optional::get),
-                                bothAttributes -> Stream.concat(diffADProperties(childEmitter, bothAttributes),
-                                        diffOptions(childEmitter, bothAttributes))
+                                (singleEmitter, bothAttributes) -> Stream.concat(diffADProperties(singleEmitter, bothAttributes),
+                                        diffOptions(singleEmitter, bothAttributes))
                         )));
     }
 
@@ -93,13 +93,13 @@ public class MetaTypeOCDDiffer implements Differ<MetaTypeOCD> {
                                                         ? Optional.ofNullable(labels[index])
                                                         : Optional.<String>empty()))
                                         .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)))));
-        return GenericDiffers.ofOptionals(emitter, bothOptionsMaps, optionsMap ->
-                GenericDiffers.ofAllInEitherMap(emitter::forChild, optionsMap, (optionValueDiff, optOptLabels) ->
-                        GenericDiffers.ofOptionals(optionValueDiff,
+        return GenericDiffers.ofOptionals(emitter, bothOptionsMaps,
+                (optEmitter, optionsMap) -> GenericDiffers.ofAllInEitherMap(optEmitter::forChild, optionsMap,
+                        (childEmitter, optOptLabels) -> GenericDiffers.ofOptionals(childEmitter,
                                 optOptLabels.map(optOptLabel -> optOptLabel.flatMap(label -> label)),
-                                labels -> labels.testBoth(Objects::equals)
+                                (labelEmitter, labels) -> labels.testBoth(Objects::equals)
                                         ? Stream.empty()
-                                        : Stream.of(optionValueDiff.changed()))
+                                        : Stream.of(labelEmitter.changed()))
                 ));
     }
 }

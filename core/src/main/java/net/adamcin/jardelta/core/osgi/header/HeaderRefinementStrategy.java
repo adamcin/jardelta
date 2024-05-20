@@ -20,7 +20,7 @@ import aQute.bnd.header.Parameters;
 import aQute.bnd.osgi.Constants;
 import net.adamcin.jardelta.api.Kind;
 import net.adamcin.jardelta.api.Name;
-import net.adamcin.jardelta.api.diff.Action;
+import net.adamcin.jardelta.api.diff.Verb;
 import net.adamcin.jardelta.api.diff.Diff;
 import net.adamcin.jardelta.api.diff.Differ;
 import net.adamcin.jardelta.api.diff.Diffs;
@@ -31,7 +31,7 @@ import net.adamcin.jardelta.core.Context;
 import net.adamcin.jardelta.core.Refinement;
 import net.adamcin.jardelta.core.RefinementStrategy;
 import net.adamcin.jardelta.core.manifest.ManifestAttribute;
-import net.adamcin.jardelta.core.manifest.ManifestDiffer;
+import net.adamcin.jardelta.core.manifest.ManifestRefinementStrategy;
 import net.adamcin.jardelta.core.manifest.Manifests;
 import net.adamcin.jardelta.core.osgi.OsgiUtil;
 import net.adamcin.jardelta.core.osgi.ocd.PidDesignates;
@@ -54,9 +54,10 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class HeaderRefinementStrategy implements RefinementStrategy {
-    private static final Attributes NAMES = Stream.of(
+    private static final Attributes NAMES = ManifestAttribute.attributeSet(
             Constants.EXPORT_PACKAGE,
             Constants.IMPORT_PACKAGE,
+            Constants.PRIVATE_PACKAGE,
             Constants.REQUIRE_BUNDLE,
             Constants.FRAGMENT_HOST,
             Constants.PROVIDE_CAPABILITY,
@@ -64,17 +65,13 @@ public class HeaderRefinementStrategy implements RefinementStrategy {
             Constants.SERVICE_COMPONENT,
             Constants.BUNDLE_SYMBOLICNAME,
             Constants.INCLUDE_RESOURCE
-    ).map(ManifestAttribute::nameOf).collect(
-            Collectors.toMap(
-                    Object.class::cast,
-                    Fun.compose1(Fun.infer1(Attributes.Name::toString), Object.class::cast),
-                    (left, right) -> left,
-                    Attributes::new));
+    );
 
-    private static final Predicate<Diff> REFINEMENT_TEST_COMMON = diff -> diff.getKind().isSubKindOf(ManifestDiffer.DIFF_KIND)
-            && diff.getAction() == Action.CHANGED;
-    private static final Predicate<Diff> REFINEMENT_TEST_PARAMETERIZED = diff ->
-            NAMES.containsKey(ManifestAttribute.nameOf(diff.getName().getSegment()));
+    private static final Predicate<Diff> REFINEMENT_TEST_COMMON = diff -> diff.getKind().isSubKindOf(ManifestRefinementStrategy.DIFF_KIND)
+            && diff.getVerb() == Verb.CHANGED;
+    private static final Predicate<Diff> REFINEMENT_TEST_PARAMETERIZED = Fun.composeTest1(
+            Fun.compose1(Diff::getName, Name::getSegment),
+            ManifestAttribute.inAttributeSet(NAMES));
 
     @Override
     public @NotNull Kind getKind() {

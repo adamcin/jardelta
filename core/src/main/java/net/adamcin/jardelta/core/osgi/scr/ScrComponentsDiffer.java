@@ -48,12 +48,13 @@ public class ScrComponentsDiffer implements Differ<ScrComponents> {
         builder.put("@dsVersion", (emitter, element) ->
                 GenericDiffers.ofObjectEquality(emitter, element.values().map(ComponentMetadata::getDSVersion)));
         builder.put("@serviceMetadata", (emitter, element) ->
-                GenericDiffers.ofOptionals(emitter, element.values().mapOptional(ComponentMetadata::getServiceMetadata), metas ->
-                        Stream.concat(
-                                GenericDiffers.ofObjectEquality(emitter.forChild("@scope"), metas.map(ServiceMetadata::getScope)),
-                                GenericDiffers.ofAllInEitherSet(emitter.forChild("@provides")::forChild,
-                                        metas.map(ServiceMetadata::getProvides).map(List::of))
-                        )));
+                GenericDiffers.ofOptionals(emitter, element.values().mapOptional(ComponentMetadata::getServiceMetadata),
+                        (metaEmitter, metas) ->
+                                Stream.concat(
+                                        GenericDiffers.ofObjectEquality(emitter.forChild("@scope"), metas.map(ServiceMetadata::getScope)),
+                                        GenericDiffers.ofAllInEitherSet(emitter.forChild("@provides")::forChild,
+                                                metas.map(ServiceMetadata::getProvides).map(List::of))
+                                )));
         builder.put("@properties", (emitter, element) ->
                 GenericDiffers.ofAllInEitherMap(emitter::forChild, element.values().map(ComponentMetadata::getProperties),
                         GenericDiffers::ofOptionals));
@@ -65,9 +66,9 @@ public class ScrComponentsDiffer implements Differ<ScrComponents> {
                                 .map(ComponentMetadata::getDependencies)
                                 .map(references -> references.stream().collect(Collectors.groupingBy(ReferenceMetadata::getName))),
                         (childEmitter, optMetas) -> GenericDiffers.ofOptionals(childEmitter, optMetas,
-                                metas -> GenericDiffers.ofAtMostOne(childEmitter, metas,
-                                        singles -> referenceMetadatasDiffer.diff(childEmitter,
-                                                new ReferenceMetadatas(Objects.requireNonNull(childEmitter.getName()), singles)))))
+                                (metaEmitter, metas) -> GenericDiffers.ofAtMostOne(metaEmitter, metas,
+                                        (singleEmitter, singles) -> referenceMetadatasDiffer.diff(singleEmitter,
+                                                new ReferenceMetadatas(Objects.requireNonNull(singleEmitter.getName()), singles)))))
         );
     });
 

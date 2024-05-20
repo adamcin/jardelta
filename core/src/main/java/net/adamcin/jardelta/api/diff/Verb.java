@@ -19,8 +19,8 @@ package net.adamcin.jardelta.api.diff;
 import java.io.Serializable;
 
 /**
- * Enumerator of diff actions. Enum values should be defined in order from least significant to most significant.
+ * Enumerator of diff verbs. Enum values should be defined in order from least significant to most significant.
  */
-public enum Action implements Comparable<Action>, Serializable {
+public enum Verb implements Comparable<Verb>, Serializable {
     ERR_LEFT, ADDED, CHANGED, REMOVED, ERR_RIGHT;
 }

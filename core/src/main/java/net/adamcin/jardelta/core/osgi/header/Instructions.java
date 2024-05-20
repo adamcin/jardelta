@@ -59,9 +59,4 @@ public class Instructions implements Element<Optional<Parameters>> {
                 .orElseGet(() -> values.right().isPresent());
     }
 
-    @NotNull
-    public Both<Optional<String>> formatted() {
-        return values.map(value -> value.map(Parameters::toString));
-    }
-
 }

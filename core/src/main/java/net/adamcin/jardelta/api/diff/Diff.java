@@ -42,17 +42,17 @@ public final class Diff implements Comparable<Diff>, Serializable {
     @NonNull
     private final Kind kind;
     @NonNull
-    private final Action action;
+    private final Verb verb;
     @NonNull
     private final Both<Optional<String>> hints;
 
     private Diff(@NotNull Name name,
                  @NotNull Kind kind,
-                 @NotNull Action action,
+                 @NotNull Verb verb,
                  @NotNull Both<Optional<String>> hints) {
         this.name = name;
         this.kind = kind;
-        this.action = action;
+        this.verb = verb;
         this.hints = hints;
     }
 
@@ -66,12 +66,12 @@ public final class Diff implements Comparable<Diff>, Serializable {
     }
 
     /**
-     * Get the {@link Action} represented by this diff.
+     * Get the {@link Verb} represented by this diff.
      *
-     * @return the {@link Action} represented by this diff
+     * @return the {@link Verb} represented by this diff
      */
-    public @NotNull Action getAction() {
-        return action;
+    public @NotNull Verb getVerb() {
+        return verb;
     }
 
     /**
@@ -97,7 +97,7 @@ public final class Diff implements Comparable<Diff>, Serializable {
     public int compareTo(@NotNull Diff other) {
         int byName = this.name.compareTo(other.name);
         int byKind = this.kind.compareTo(other.kind);
-        return byName != 0 ? byName : (byKind != 0 ? byKind : this.action.compareTo(other.action));
+        return byName != 0 ? byName : (byKind != 0 ? byKind : this.verb.compareTo(other.verb));
     }
 
     static final class Builder implements Emitter {
@@ -126,58 +126,58 @@ public final class Diff implements Comparable<Diff>, Serializable {
         }
 
         @NotNull
-        Diff build(@NotNull Action action) {
-            return build(action, NO_HINTS);
+        Diff build(@NotNull Verb verb) {
+            return build(verb, NO_HINTS);
         }
 
         @NotNull
-        Diff build(@NotNull Action action, @NotNull Both<Optional<String>> hints) {
-            return new Diff(name, kind, action, hints);
+        Diff build(@NotNull Verb verb, @NotNull Both<Optional<String>> hints) {
+            return new Diff(name, kind, verb, hints);
         }
 
         @Override
         @NotNull
         public Diff added() {
-            return build(Action.ADDED);
+            return build(Verb.ADDED);
         }
 
         @Override
         public @NotNull Diff added(@NotNull String hint) {
-            return build(Action.ADDED, Both.ofNullables(null, hint));
+            return build(Verb.ADDED, Both.ofNullables(null, hint));
         }
 
         @Override
         @NotNull
         public Diff removed() {
-            return build(Action.REMOVED);
+            return build(Verb.REMOVED);
         }
 
         @Override
         public @NotNull Diff removed(@NotNull String hint) {
-            return build(Action.REMOVED, Both.ofNullables(hint, null));
+            return build(Verb.REMOVED, Both.ofNullables(hint, null));
         }
 
         @Override
         @NotNull
         public Diff changed() {
-            return build(Action.CHANGED);
+            return build(Verb.CHANGED);
         }
 
         @Override
         public @NotNull Diff changed(@NotNull Both<String> hints) {
-            return build(Action.CHANGED, hints.map(Optional::of));
+            return build(Verb.CHANGED, hints.map(Optional::of));
         }
 
         @Override
         @NotNull
         public Diff errLeft(@NotNull Result<?> failure) {
-            return build(Action.ERR_LEFT, Both.ofNullables(errHint(failure), null));
+            return build(Verb.ERR_LEFT, Both.ofNullables(errHint(failure), null));
         }
 
         @Override
         @NotNull
         public Diff errRight(@NotNull Result<?> failure) {
-            return build(Action.ERR_RIGHT, Both.ofNullables(null, errHint(failure)));
+            return build(Verb.ERR_RIGHT, Both.ofNullables(null, errHint(failure)));
         }
 
         @Nullable

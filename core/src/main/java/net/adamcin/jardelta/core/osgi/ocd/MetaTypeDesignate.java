@@ -57,4 +57,8 @@ public class MetaTypeDesignate {
         return objectClassDefinitions;
     }
 
+    @Override
+    public String toString() {
+        return "@Designate(" + (isFactory ? "factoryPid" : "pid") + "=" + pid + ")";
+    }
 }

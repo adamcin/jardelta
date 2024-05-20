@@ -45,9 +45,8 @@ public class JarEntryDiffer implements Differ<JarEntry> {
 
     @Override
     public @NotNull Stream<Diff> diff(@NotNull Emitter baseEmitter, @NotNull JarEntry element) {
-        final Emitter emitter = baseEmitter.forSubElement(element);
-        return GenericDiffers.ofOptionals(emitter, element.values(), results ->
-                GenericDiffers.ofResults(emitter, results, values ->
-                        differs.diff(emitter, element.project(Name.ROOT, values))));
+        return GenericDiffers.ofOptionals(baseEmitter.forSubElement(element), element.values(),
+                (emitter, results) -> GenericDiffers.ofResults(emitter, results,
+                        (resultEmitter, values) -> differs.diff(resultEmitter, element.project(Name.ROOT, values))));
     }
 }
