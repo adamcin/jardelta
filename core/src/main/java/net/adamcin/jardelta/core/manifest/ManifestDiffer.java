@@ -38,9 +38,11 @@ public class ManifestDiffer implements Differ<Manifests> {
         return GenericDiffers.ofOptionals(baseEmitter.forSubElement(element), element.values(),
                 (emitter, values) -> Stream.concat(
                         diffAttributes(emitter, values.map(Manifest::getMainAttributes)),
-                        GenericDiffers.ofAllInEitherMap(entryName -> emitter
-                                        .ofSubKind(Kind.of("entry"))
-                                        .forChild(String.format("{entry:%s}", entryName)), values.map(Manifest::getEntries),
+                        GenericDiffers.ofAllInEitherMap(emitter, builder -> builder.emitterProjection(
+                                        (emit, entryName) -> emit
+                                                .ofSubKind(Kind.of("entry"))
+                                                .forChild(String.format("{entry:%s}", entryName))),
+                                values.map(Manifest::getEntries),
                                 (childEmitter, optAttrs) ->
                                         GenericDiffers.ofOptionals(childEmitter, optAttrs, this::diffAttributes))));
     }

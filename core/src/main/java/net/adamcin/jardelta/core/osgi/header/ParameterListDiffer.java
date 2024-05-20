@@ -67,7 +67,7 @@ public class ParameterListDiffer implements Differ<ParameterListElement> {
                         .map(ParameterList::getAllAttrs)
                         .orElse(Collections.emptySet())).stream()
                 .reduce(new TreeSet<>(), GenericDiffers::mergeSets, GenericDiffers::mergeSets);
-        return GenericDiffers.ofAllInEitherSet(baseEmitter::forChild,
+        return GenericDiffers.ofAllInEitherSet(baseEmitter,
                 values.map(value -> value.map(list -> list.attrsToStrings(allAttrNames)
                                 .collect(Collectors.toSet()))
                         .orElse(Collections.emptySet())));

@@ -44,7 +44,7 @@ public class MetaTypeOCDDiffer implements Differ<MetaTypeOCD> {
         final Stream<Diff> ocdElementDiffs = Stream.of(
                 Fun.toEntry("@name", element.values().mapOptional(ObjectClassDefinition::getName)),
                 Fun.toEntry("@description", element.values().mapOptional(ObjectClassDefinition::getDescription))
-        ).flatMap(Fun.mapEntry((key, values) -> GenericDiffers.ofObjectEquality(emitter.forChild(key), requireChars(values))));
+        ).flatMap(Fun.mapEntry((key, values) -> GenericDiffers.ofOptionals(emitter.forChild(key), requireChars(values))));
 
         final Both<Map<String, List<AttributeDefinition>>> bothAttributeDefinitions = element.values()
                 .map(ocd -> {
@@ -53,7 +53,7 @@ public class MetaTypeOCDDiffer implements Differ<MetaTypeOCD> {
                     return attributeStream.collect(Collectors.groupingBy(AttributeDefinition::getID));
                 });
 
-        return Stream.concat(ocdElementDiffs, GenericDiffers.ofAllInEitherMap(emitter::forChild, bothAttributeDefinitions,
+        return Stream.concat(ocdElementDiffs, GenericDiffers.ofAllInEitherMap(emitter, bothAttributeDefinitions,
                 (childEmitter, bothLists) ->
                         GenericDiffers.ofAtMostOne(childEmitter, bothLists.map(Optional::get),
                                 (singleEmitter, bothAttributes) -> Stream.concat(diffADProperties(singleEmitter, bothAttributes),
@@ -74,7 +74,7 @@ public class MetaTypeOCDDiffer implements Differ<MetaTypeOCD> {
                                 .map(odv -> odv.map(Stream::of).map(dvs -> dvs
                                         .map(Json::createValue)
                                         .collect(JsonCollectors.toJsonArray()).toString())))
-                ).flatMap(Fun.mapEntry((key, values) -> GenericDiffers.ofObjectEquality(baseEmitter.forChild(key), values))),
+                ).flatMap(Fun.mapEntry((key, values) -> GenericDiffers.ofOptionals(baseEmitter.forChild(key), values))),
                 Stream.of(
                         Fun.toEntry("@type", bothAttributes.map(AttributeDefinition::getType)),
                         Fun.toEntry("@cardinality", bothAttributes.map(AttributeDefinition::getCardinality))
@@ -94,7 +94,7 @@ public class MetaTypeOCDDiffer implements Differ<MetaTypeOCD> {
                                                         : Optional.<String>empty()))
                                         .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)))));
         return GenericDiffers.ofOptionals(emitter, bothOptionsMaps,
-                (optEmitter, optionsMap) -> GenericDiffers.ofAllInEitherMap(optEmitter::forChild, optionsMap,
+                (optEmitter, optionsMap) -> GenericDiffers.ofAllInEitherMap(optEmitter, optionsMap,
                         (childEmitter, optOptLabels) -> GenericDiffers.ofOptionals(childEmitter,
                                 optOptLabels.map(optOptLabel -> optOptLabel.flatMap(label -> label)),
                                 (labelEmitter, labels) -> labels.testBoth(Objects::equals)

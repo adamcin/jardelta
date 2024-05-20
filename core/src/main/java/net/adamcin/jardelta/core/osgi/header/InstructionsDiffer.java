@@ -60,9 +60,8 @@ public class InstructionsDiffer implements Differ<Instructions> {
 
     @NotNull Stream<Diff> diffParameters(@NotNull Emitter baseEmitter,
                                          @NotNull Both<Parameters> bothParameters) {
-        return GenericDiffers.ofAllInEitherMap(baseEmitter::forChild, bothParameters,
-                (emitter, optAttrs) -> GenericDiffers.ofOptionals(emitter, optAttrs,
-                        (optEmitter, attrs) -> GenericDiffers.ofAllInEitherMap(optEmitter::forChild, attrs)));
+        return GenericDiffers.ofAllInEitherMap(baseEmitter, bothParameters,
+                (emitter, optAttrs) -> GenericDiffers.ofOptionals(emitter, optAttrs, GenericDiffers::ofAllInEitherMap));
     }
 
     @NotNull Stream<Diff> diffParameterListsWithAliases(@NotNull Emitter emitter,

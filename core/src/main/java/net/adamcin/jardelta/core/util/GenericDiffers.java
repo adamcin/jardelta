@@ -19,19 +19,18 @@ package net.adamcin.jardelta.core.util;
 import net.adamcin.jardelta.api.diff.Diff;
 import net.adamcin.jardelta.api.diff.Emitter;
 import net.adamcin.streamsupport.Both;
+import net.adamcin.streamsupport.Fun;
 import net.adamcin.streamsupport.Result;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
-import java.util.TreeSet;
 import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
-import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 /**
@@ -42,6 +41,39 @@ import java.util.stream.Stream;
  */
 public final class GenericDiffers {
     static final String ERROR_AT_MOST_ONE = "unexpected plurality";
+    static final BiPredicate<Object, Object> DEFAULT_EQUALITY_TEST = Objects::deepEquals;
+    static final Function<Object, Optional<String>> DEFAULT_HINTER = Fun.compose1(
+            value -> value instanceof Object[] ? Arrays.deepToString((Object[]) value) : Objects.toString(value),
+            Optional::of);
+
+    /**
+     * Compare both objects, returning {@link java.util.stream.Stream#empty()} when {@code equalityTest} returns true,
+     * and {@link net.adamcin.jardelta.api.diff.Verb#CHANGED} when it returns false.
+     *
+     * @param hinter       a function to produce a hint for a given value
+     * @param emitter      a diff builder
+     * @param values       both values
+     * @param equalityTest delegate function for present-present case
+     * @param <T>          the type parameter of the Optional values
+     * @return the diff stream
+     */
+    @NotNull
+    public static <T> Stream<Diff> ofObjectEquality(
+            @NotNull Function<? super T, Optional<String>> hinter,
+            @NotNull Emitter emitter,
+            @NotNull Both<T> values,
+            @NotNull BiPredicate<? super T, ? super T> equalityTest) {
+        if (values.testBoth(equalityTest)) {
+            return Stream.empty();
+        } else {
+            Both<Optional<String>> hints = values.map(hinter);
+            if (hints.map(Optional::isPresent).testBoth((left, right) -> left && right)) {
+                return Stream.of(emitter.changed(hints.map(Optional::get)));
+            } else {
+                return Stream.of(emitter.changed());
+            }
+        }
+    }
 
     /**
      * Compare both objects, returning {@link java.util.stream.Stream#empty()} when {@code equalityTest} returns true,
@@ -58,11 +90,26 @@ public final class GenericDiffers {
             @NotNull Emitter emitter,
             @NotNull Both<T> values,
             @NotNull BiPredicate<? super T, ? super T> equalityTest) {
-        if (values.testBoth(equalityTest)) {
-            return Stream.empty();
-        } else {
-            return Stream.of(emitter.changed(values.map(Objects::toString)));
-        }
+        return ofObjectEquality(DEFAULT_HINTER, emitter, values, equalityTest);
+    }
+
+    /**
+     * Compare both objects, returning {@link java.util.stream.Stream#empty()} when
+     * {@link Objects#deepEquals(Object, Object)} returns true, and {@link net.adamcin.jardelta.api.diff.Verb#CHANGED}
+     * when it returns false.
+     *
+     * @param hinter  a function to produce a hint for a given value
+     * @param emitter a diff builder
+     * @param values  both values
+     * @param <T>     the type parameter of the Optional values
+     * @return the diff stream
+     */
+    @NotNull
+    public static <T> Stream<Diff> ofObjectEquality(
+            @NotNull Function<? super T, Optional<String>> hinter,
+            @NotNull Emitter emitter,
+            @NotNull Both<T> values) {
+        return ofObjectEquality(hinter, emitter, values, DEFAULT_EQUALITY_TEST);
     }
 
     /**
@@ -79,7 +126,36 @@ public final class GenericDiffers {
     public static <T> Stream<Diff> ofObjectEquality(
             @NotNull Emitter emitter,
             @NotNull Both<T> values) {
-        return ofObjectEquality(emitter, values, Objects::deepEquals);
+        return ofObjectEquality(DEFAULT_HINTER, emitter, values, DEFAULT_EQUALITY_TEST);
+    }
+
+    /**
+     * Compare both optionals, returning {@link java.util.stream.Stream#empty()} for empty-empty,
+     * {@link net.adamcin.jardelta.api.diff.Verb#ADDED} for empty-present, and {@link net.adamcin.jardelta.api.diff.Verb#REMOVED}
+     * for present-empty, while delegating present-present to the provided {@link java.util.function.Function}.
+     *
+     * @param emitter       a diff builder
+     * @param values        both values
+     * @param hinter        function to stringify hints for added/removed diffs
+     * @param ifBothPresent delegate function for present-present case
+     * @param <T>           the type parameter of the Optional values
+     * @return the diff stream
+     */
+    @NotNull
+    public static <T> Stream<Diff> ofOptionals(
+            @NotNull Emitter emitter,
+            @NotNull Both<Optional<T>> values,
+            @NotNull Function<? super T, Optional<String>> hinter,
+            @NotNull BiFunction<Emitter, Both<T>, Stream<Diff>> ifBothPresent) {
+        if (values.left().isEmpty()) {
+            return values.right().stream().map(value -> hinter.apply(value)
+                    .map(emitter::added).orElseGet(emitter::added));
+        } else if (values.right().isEmpty()) {
+            return values.left().stream().map(value -> hinter.apply(value)
+                    .map(emitter::removed).orElseGet(emitter::removed));
+        } else {
+            return ifBothPresent.apply(emitter, values.map(Optional::get));
+        }
     }
 
     /**
@@ -98,13 +174,27 @@ public final class GenericDiffers {
             @NotNull Emitter emitter,
             @NotNull Both<Optional<T>> values,
             @NotNull BiFunction<Emitter, Both<T>, Stream<Diff>> ifBothPresent) {
-        if (values.left().isEmpty()) {
-            return values.right().stream().map(value -> emitter.added(Objects.toString(value)));
-        } else if (values.right().isEmpty()) {
-            return values.left().stream().map(value -> emitter.removed(Objects.toString(value)));
-        } else {
-            return ifBothPresent.apply(emitter, values.map(Optional::get));
-        }
+        return ofOptionals(emitter, values, DEFAULT_HINTER, ifBothPresent);
+    }
+
+    /**
+     * Compare both optionals, returning {@link java.util.stream.Stream#empty()} for empty-empty,
+     * {@link net.adamcin.jardelta.api.diff.Verb#ADDED} for empty-present, and {@link net.adamcin.jardelta.api.diff.Verb#REMOVED}
+     * for present-empty, while delegating present-present to
+     * {@link #ofObjectEquality(net.adamcin.jardelta.api.diff.Emitter, net.adamcin.streamsupport.Both)}.
+     *
+     * @param hinter  function to stringify hints for added/removed diffs
+     * @param emitter a diff builder
+     * @param values  both values
+     * @param <T>     the type parameter of the Optional values
+     * @return the diff stream
+     */
+    @NotNull
+    public static <T> Stream<Diff> ofOptionals(
+            @NotNull Function<? super T, Optional<String>> hinter,
+            @NotNull Emitter emitter,
+            @NotNull Both<Optional<T>> values) {
+        return ofOptionals(emitter, values, hinter, GenericDiffers::ofObjectEquality);
     }
 
     /**
@@ -178,6 +268,7 @@ public final class GenericDiffers {
      * net.adamcin.streamsupport.Both, java.util.function.BiFunction)}
      * and then to the provided {@code ifBothSingle} function.
      *
+     * @param hinter       function to stringify hints for added/removed diffs
      * @param emitter      a diff emitter
      * @param values       both values
      * @param ifBothSingle delegate function for single-single case
@@ -186,6 +277,7 @@ public final class GenericDiffers {
      */
     @NotNull
     public static <T> Stream<Diff> ofAtMostOne(
+            @NotNull Function<? super T, Optional<String>> hinter,
             @NotNull Emitter emitter,
             @NotNull Both<? extends Iterable<T>> values,
             @NotNull BiFunction<Emitter, Both<T>, Stream<Diff>> ifBothSingle) {
@@ -204,7 +296,55 @@ public final class GenericDiffers {
             }
         });
         return ofResults(emitter, iterated, (childEmitter, results) ->
-                ofOptionals(childEmitter, results, ifBothSingle));
+                ofOptionals(childEmitter, results, hinter, ifBothSingle));
+    }
+
+
+    /**
+     * Compare both iterables based on cardinality, where only one comparable value is expected. Cases of zero-one,
+     * one-zero, and one-one are mapped to {@link net.adamcin.streamsupport.Result#success(Object)}, while a many
+     * cardinality on either side is mapped to a respective {@link net.adamcin.streamsupport.Result#failure(String)}.
+     * This pair is then delegated to {@link #ofResults(net.adamcin.jardelta.api.diff.Emitter,
+     * net.adamcin.streamsupport.Both, java.util.function.BiFunction)} and {@link #ofOptionals(net.adamcin.jardelta.api.diff.Emitter,
+     * net.adamcin.streamsupport.Both, java.util.function.BiFunction)}
+     * and then to {@link #ofObjectEquality(net.adamcin.jardelta.api.diff.Emitter, net.adamcin.streamsupport.Both)}.
+     *
+     * @param emitter a diff builder
+     * @param values  both values
+     * @param <T>     the type parameter of the Iterable values
+     * @return the diff stream
+     */
+    @NotNull
+    public static <T> Stream<Diff> ofAtMostOne(
+            @NotNull Emitter emitter,
+            @NotNull Both<? extends Iterable<T>> values,
+            @NotNull BiFunction<Emitter, Both<T>, Stream<Diff>> ifBothSingle) {
+        return ofAtMostOne(DEFAULT_HINTER, emitter, values, ifBothSingle);
+    }
+
+
+    /**
+     * Compare both iterables based on cardinality, where only one comparable value is expected. Cases of zero-one,
+     * one-zero, and one-one are mapped to {@link net.adamcin.streamsupport.Result#success(Object)}, while a many
+     * cardinality on either side is mapped to a respective {@link net.adamcin.streamsupport.Result#failure(String)}.
+     * This pair is then delegated to {@link #ofResults(net.adamcin.jardelta.api.diff.Emitter,
+     * net.adamcin.streamsupport.Both, java.util.function.BiFunction)} and {@link #ofOptionals(net.adamcin.jardelta.api.diff.Emitter,
+     * net.adamcin.streamsupport.Both, java.util.function.BiFunction)}
+     * and then to {@link #ofObjectEquality(net.adamcin.jardelta.api.diff.Emitter, net.adamcin.streamsupport.Both)}.
+     *
+     * @param hinter  function to stringify hints for added/removed diffs
+     * @param emitter a diff builder
+     * @param values  both values
+     * @param <T>     the type parameter of the Iterable values
+     * @return the diff stream
+     */
+    @NotNull
+    public static <T> Stream<Diff> ofAtMostOne(
+            @NotNull Function<? super T, Optional<String>> hinter,
+            @NotNull Emitter emitter,
+            @NotNull Both<? extends Iterable<T>> values) {
+        return ofAtMostOne(hinter, emitter, values,
+                (emit, vals) -> GenericDiffers.ofObjectEquality(hinter, emit, vals));
     }
 
     /**
@@ -250,38 +390,21 @@ public final class GenericDiffers {
      * {@link net.adamcin.jardelta.api.diff.Verb#REMOVED} for contains-!contains, and delegating to the provided
      * {@code ifIntersection} function for contains-contains.
      *
-     * @param emitterProjection emitter projection function
-     * @param bothSets          both values
-     * @param setSupplier       provide a {@link java.util.Set} supplier appropriate for element type {@code T}
-     * @param ifIntersection    delegate function for intersecting elements
-     * @param <T>               the type parameter of the Collection values
+     * @param baseEmitter    base emitter
+     * @param bothSets       both values
+     * @param ifIntersection delegate function for intersecting elements
+     * @param <T>            the type parameter of the Collection values
      * @return the diff stream
      */
     @NotNull
     public static <T> Stream<Diff> ofAllInEitherSet(
-            @NotNull Function<? super T, Emitter> emitterProjection,
+            @NotNull Emitter baseEmitter,
+            @NotNull Function<SetDiffer.SetDifferBuilder<T>, SetDiffer.SetDifferBuilder<T>> builderCustomizer,
             @NotNull Both<? extends Collection<T>> bothSets,
-            @NotNull Supplier<? extends Set<T>> setSupplier,
             @NotNull BiFunction<Emitter, ? super T, Stream<Diff>> ifIntersection) {
-        final Set<T> allValues = bothSets.stream().reduce(setSupplier.get(),
-                GenericDiffers::mergeSets, GenericDiffers::mergeSets);
-
-        Stream<Diff> stream = Stream.empty();
-        for (T value : allValues) {
-            final Emitter childEmitter = emitterProjection.apply(value);
-            if (!bothSets.left().contains(value)) {
-                if (bothSets.right().contains(value)) {
-                    stream = Stream.concat(stream, Stream.of(childEmitter.added()));
-                }
-                // empty-empty case, leave stream unmodified
-            } else if (!bothSets.right().contains(value)) {
-                stream = Stream.concat(stream, Stream.of(childEmitter.removed()));
-            } else {
-                stream = Stream.concat(stream, ifIntersection.apply(childEmitter, value));
-            }
-        }
-
-        return stream;
+        final SetDiffer.SetDifferBuilder<T> builder = SetDiffer.<T>builder()
+                .intersectDiffer(ifIntersection);
+        return builderCustomizer.apply(builder).build().diffSets(baseEmitter, bothSets);
     }
 
     /**
@@ -291,20 +414,18 @@ public final class GenericDiffers {
      * {@code ifIntersection} function for contained-contained.
      * NOTE: uses {@link java.util.TreeSet#TreeSet()} for aggregate set operations.
      *
-     * @param emitterProjection emitter projection function
-     * @param bothSets          both values
-     * @param ifIntersection    delegate function for intersecting elements
-     * @param <T>               the type parameter of the Collection values
+     * @param baseEmitter    base diff emitter
+     * @param bothSets       both values
+     * @param ifIntersection delegate function for intersecting elements
+     * @param <T>            the type parameter of the Collection values
      * @return the diff stream
-     * @see #ofAllInEitherSet(java.util.function.Function, net.adamcin.streamsupport.Both, java.util.function.Supplier,
-     * java.util.function.BiFunction)
      */
     @NotNull
     public static <T> Stream<Diff> ofAllInEitherSet(
-            @NotNull Function<? super T, Emitter> emitterProjection,
+            @NotNull Emitter baseEmitter,
             @NotNull Both<? extends Collection<T>> bothSets,
             @NotNull BiFunction<Emitter, ? super T, Stream<Diff>> ifIntersection) {
-        return ofAllInEitherSet(emitterProjection, bothSets, TreeSet::new, ifIntersection);
+        return SetDiffer.<T>builder().intersectDiffer(ifIntersection).build().diffSets(baseEmitter, bothSets);
     }
 
     /**
@@ -314,18 +435,16 @@ public final class GenericDiffers {
      * {@link java.util.stream.Stream#empty()} for contained-contained.
      * NOTE: uses {@link java.util.TreeSet#TreeSet()} for aggregate set operations.
      *
-     * @param emitterProjection emitter projection function
-     * @param bothSets          both values
-     * @param <T>               the type parameter of the Collection values
+     * @param baseEmitter base diff emitter
+     * @param bothSets    both values
+     * @param <T>         the type parameter of the Collection values
      * @return the diff stream
-     * @see #ofAllInEitherSet(java.util.function.Function, net.adamcin.streamsupport.Both, java.util.function.Supplier,
-     * java.util.function.BiFunction)
      */
     @NotNull
     public static <T> Stream<Diff> ofAllInEitherSet(
-            @NotNull Function<? super T, Emitter> emitterProjection,
+            @NotNull Emitter baseEmitter,
             @NotNull Both<? extends Collection<T>> bothSets) {
-        return ofAllInEitherSet(emitterProjection, bothSets, (emitter, elements) -> Stream.empty());
+        return SetDiffer.<T>builder().build().diffSets(baseEmitter, bothSets);
     }
 
     /**
@@ -334,22 +453,27 @@ public final class GenericDiffers {
      * {@link net.adamcin.jardelta.api.diff.Verb#REMOVED} for containsKey-!containsKey, and delegating to the provided
      * {@code ifIntersection} function for containsKey-containsKey.
      *
-     * @param emitterProjection emitter projection function
+     * @param valueHinter       a function to produce a hint for a given map value
+     * @param baseEmitter       the base diff emitter
+     * @param builderCustomizer function to customize the {@link net.adamcin.jardelta.core.util.SetDiffer.SetDifferBuilder}
      * @param bothMaps          both values
-     * @param setSupplier       provide a {@link java.util.Set} supplier appropriate for element type {@code K}
      * @param ifIntersection    delegate function for intersecting keys
-     * @param <K>               the type parameter of the map's keys
-     * @param <V>               the type parameter of the map's values
+     * @param <K>               the type of the map's keys
+     * @param <V>               the type of the map's values
      * @return the diff stream
      */
     @NotNull
     public static <K, V> Stream<Diff> ofAllInEitherMap(
-            @NotNull Function<? super K, Emitter> emitterProjection,
+            @NotNull Function<? super V, Optional<String>> valueHinter,
+            @NotNull Emitter baseEmitter,
+            @NotNull Function<SetDiffer.SetDifferBuilder<K>, SetDiffer.SetDifferBuilder<K>> builderCustomizer,
             @NotNull Both<? extends Map<K, V>> bothMaps,
-            @NotNull Supplier<? extends Set<K>> setSupplier,
             @NotNull BiFunction<Emitter, Both<Optional<V>>, Stream<Diff>> ifIntersection) {
-        return ofAllInEitherSet(emitterProjection, bothMaps.map(Map::keySet), setSupplier,
-                (emitter, key) -> ifIntersection.apply(emitter, bothMaps.mapOptional(map -> map.get(key))));
+        final SetDiffer.SetDifferBuilder<K> builder = SetDiffer.<K>builder()
+                .hinter(key -> bothMaps.map(map -> Optional.ofNullable(map.get(key)).flatMap(valueHinter)))
+                .intersectDiffer((emitter, key) ->
+                        ifIntersection.apply(emitter, bothMaps.mapOptional(map -> map.get(key))));
+        return builderCustomizer.apply(builder).build().diffSets(baseEmitter, bothMaps.map(Map::keySet));
     }
 
     /**
@@ -359,7 +483,8 @@ public final class GenericDiffers {
      * {@code ifIntersection} function for containsKey-containsKey.
      * NOTE: uses {@link java.util.TreeSet#TreeSet()} for aggregate set operations.
      *
-     * @param emitterProjection emitter projection function
+     * @param baseEmitter       base emitter
+     * @param builderCustomizer function to customize the {@link net.adamcin.jardelta.core.util.SetDiffer.SetDifferBuilder}
      * @param bothMaps          both values
      * @param ifIntersection    delegate function for intersecting keys
      * @param <K>               the key type parameter of the Map
@@ -368,10 +493,33 @@ public final class GenericDiffers {
      */
     @NotNull
     public static <K, V> Stream<Diff> ofAllInEitherMap(
-            @NotNull Function<? super K, Emitter> emitterProjection,
+            @NotNull Emitter baseEmitter,
+            @NotNull Function<SetDiffer.SetDifferBuilder<K>, SetDiffer.SetDifferBuilder<K>> builderCustomizer,
             @NotNull Both<? extends Map<K, V>> bothMaps,
             @NotNull BiFunction<Emitter, Both<Optional<V>>, Stream<Diff>> ifIntersection) {
-        return ofAllInEitherMap(emitterProjection, bothMaps, TreeSet::new, ifIntersection);
+        return ofAllInEitherMap(DEFAULT_HINTER, baseEmitter, builderCustomizer, bothMaps, ifIntersection);
+    }
+
+    /**
+     * Compare both maps by iterating over a set union of their keys, returning
+     * {@link net.adamcin.jardelta.api.diff.Verb#ADDED} for !containsKey-containsKey,
+     * {@link net.adamcin.jardelta.api.diff.Verb#REMOVED} for containsKey-!containsKey, and delegating to the provided
+     * {@code ifIntersection} function for containsKey-containsKey.
+     * NOTE: uses {@link java.util.TreeSet#TreeSet()} for aggregate set operations.
+     *
+     * @param baseEmitter    base emitter
+     * @param bothMaps       both values
+     * @param ifIntersection delegate function for intersecting keys
+     * @param <K>            the key type parameter of the Map
+     * @param <V>            the value type parameter of the Map
+     * @return the diff stream
+     */
+    @NotNull
+    public static <K, V> Stream<Diff> ofAllInEitherMap(
+            @NotNull Emitter baseEmitter,
+            @NotNull Both<? extends Map<K, V>> bothMaps,
+            @NotNull BiFunction<Emitter, Both<Optional<V>>, Stream<Diff>> ifIntersection) {
+        return ofAllInEitherMap(DEFAULT_HINTER, baseEmitter, Function.identity(), bothMaps, ifIntersection);
     }
 
     /**
@@ -379,19 +527,40 @@ public final class GenericDiffers {
      * {@link net.adamcin.jardelta.api.diff.Verb#ADDED} for !containsKey-containsKey,
      * {@link net.adamcin.jardelta.api.diff.Verb#REMOVED} for containsKey-!containsKey, and returning
      * {@link java.util.stream.Stream#empty()} for containsKey-containsKey.
-     * NOTE: uses {@link java.util.TreeSet#TreeSet()} for aggregate set operations.
      *
-     * @param emitterProjection emitter projection function
-     * @param bothMaps          both values
-     * @param <K>               the key type parameter of the Map
-     * @param <V>               the value type parameter of the Map
+     * @param valueHinter a function to produce a hint for a given map value
+     * @param baseEmitter base emitter
+     * @param bothMaps    both values
+     * @param <K>         the key type parameter of the Map
+     * @param <V>         the value type parameter of the Map
      * @return the diff stream
      */
     @NotNull
     public static <K, V> Stream<Diff> ofAllInEitherMap(
-            @NotNull Function<? super K, Emitter> emitterProjection,
+            @NotNull Function<? super V, Optional<String>> valueHinter,
+            @NotNull Emitter baseEmitter,
             @NotNull Both<? extends Map<K, V>> bothMaps) {
-        return ofAllInEitherMap(emitterProjection, bothMaps, GenericDiffers::ofOptionals);
+        return ofAllInEitherMap(valueHinter, baseEmitter, Function.identity(), bothMaps,
+                (emitter, values) -> GenericDiffers.ofOptionals(valueHinter, emitter, values));
+    }
+
+    /**
+     * Compare both maps by iterating over a set union of their keys, returning
+     * {@link net.adamcin.jardelta.api.diff.Verb#ADDED} for !containsKey-containsKey,
+     * {@link net.adamcin.jardelta.api.diff.Verb#REMOVED} for containsKey-!containsKey, and returning
+     * {@link java.util.stream.Stream#empty()} for containsKey-containsKey.
+     *
+     * @param baseEmitter base emitter
+     * @param bothMaps    both values
+     * @param <K>         the key type parameter of the Map
+     * @param <V>         the value type parameter of the Map
+     * @return the diff stream
+     */
+    @NotNull
+    public static <K, V> Stream<Diff> ofAllInEitherMap(
+            @NotNull Emitter baseEmitter,
+            @NotNull Both<? extends Map<K, V>> bothMaps) {
+        return ofAllInEitherMap(DEFAULT_HINTER, baseEmitter, Function.identity(), bothMaps, GenericDiffers::ofOptionals);
     }
 
 }

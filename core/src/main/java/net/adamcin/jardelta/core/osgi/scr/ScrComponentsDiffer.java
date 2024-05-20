@@ -26,8 +26,10 @@ import org.apache.felix.scr.impl.metadata.ReferenceMetadata;
 import org.apache.felix.scr.impl.metadata.ServiceMetadata;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -52,17 +54,16 @@ public class ScrComponentsDiffer implements Differ<ScrComponents> {
                         (metaEmitter, metas) ->
                                 Stream.concat(
                                         GenericDiffers.ofObjectEquality(emitter.forChild("@scope"), metas.map(ServiceMetadata::getScope)),
-                                        GenericDiffers.ofAllInEitherSet(emitter.forChild("@provides")::forChild,
+                                        GenericDiffers.ofAllInEitherSet(emitter.forChild("@provides"),
                                                 metas.map(ServiceMetadata::getProvides).map(List::of))
                                 )));
         builder.put("@properties", (emitter, element) ->
-                GenericDiffers.ofAllInEitherMap(emitter::forChild, element.values().map(ComponentMetadata::getProperties),
-                        GenericDiffers::ofOptionals));
+                GenericDiffers.ofAllInEitherMap(emitter, element.values().map(ComponentMetadata::getProperties)));
         builder.put("@factoryProperties", (emitter, element) ->
-                GenericDiffers.ofAllInEitherMap(emitter::forChild, element.values().map(ComponentMetadata::getFactoryProperties),
+                GenericDiffers.ofAllInEitherMap(emitter, element.values().map(ComponentMetadata::getFactoryProperties),
                         GenericDiffers::ofOptionals));
         builder.put("@references", (emitter, element) ->
-                GenericDiffers.ofAllInEitherMap(emitter::forChild, element.values()
+                GenericDiffers.ofAllInEitherMap(emitter, element.values()
                                 .map(ComponentMetadata::getDependencies)
                                 .map(references -> references.stream().collect(Collectors.groupingBy(ReferenceMetadata::getName))),
                         (childEmitter, optMetas) -> GenericDiffers.ofOptionals(childEmitter, optMetas,

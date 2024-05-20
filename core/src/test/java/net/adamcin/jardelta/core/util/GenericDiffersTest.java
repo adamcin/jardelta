@@ -21,6 +21,7 @@ import net.adamcin.jardelta.api.Name;
 import net.adamcin.jardelta.api.diff.Diff;
 import net.adamcin.jardelta.api.diff.Emitter;
 import net.adamcin.streamsupport.Both;
+import net.adamcin.streamsupport.Fun;
 import net.adamcin.streamsupport.Result;
 import org.junit.jupiter.api.Test;
 
@@ -28,6 +29,7 @@ import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 import static net.adamcin.jardelta.test.DiffTestUtil.assertDiffs;
@@ -60,6 +62,12 @@ class GenericDiffersTest {
         assertDiffs(GenericDiffers.ofOptionals(baseEmitter, Both.ofNullables(null, 1)), baseEmitter.added("1"));
         assertDiffs(GenericDiffers.ofOptionals(baseEmitter, Both.ofNullables(1, null)), baseEmitter.removed("1"));
         assertDiffs(GenericDiffers.ofOptionals(baseEmitter, Both.ofNullables(1, 2)), baseEmitter.changed(Both.of("1", "2")));
+        assertDiffs(GenericDiffers.ofOptionals(Fun.compose1(num -> String.format("num %d", num), Optional::of),
+                        baseEmitter, Both.ofNullables(null, 1)),
+                baseEmitter.added("num 1"));
+        assertDiffs(GenericDiffers.ofOptionals(Fun.compose1(num -> String.format("num %d", num), Optional::of),
+                        baseEmitter, Both.ofNullables(1, null)),
+                baseEmitter.removed("num 1"));
     }
 
     @Test
@@ -106,34 +114,34 @@ class GenericDiffersTest {
 
     @Test
     void ofAllInEitherSet() {
-        assertDiffs(GenericDiffers.ofAllInEitherSet(baseEmitter::forChild, Both.of(List.of("1"), List.of("1"))));
+        assertDiffs(GenericDiffers.ofAllInEitherSet(baseEmitter, Both.of(List.of("1"), List.of("1"))));
 
         final Diff sentinel = Diff.emitterOf(Kind.of("sentinel")).added();
-        assertDiffs(GenericDiffers.ofAllInEitherSet(baseEmitter::forChild, Both.of(List.of("1"), List.of("1")),
+        assertDiffs(GenericDiffers.ofAllInEitherSet(baseEmitter, Both.of(List.of("1"), List.of("1")),
                 (emitter, values) -> Stream.of(sentinel)), sentinel);
-        assertDiffs(GenericDiffers.ofAllInEitherSet(baseEmitter::forChild, Both.of(List.of("1"), List.of("1")),
-                LinkedHashSet::new,
+        assertDiffs(GenericDiffers.ofAllInEitherSet(baseEmitter, builder -> builder.setSupplier(LinkedHashSet::new),
+                Both.of(List.of("1"), List.of("1")),
                 (emitter, values) -> Stream.of(sentinel)), sentinel);
-        assertDiffs(GenericDiffers.ofAllInEitherSet(baseEmitter::forChild, Both.of(List.of("1"), List.of("1", "2"))),
+        assertDiffs(GenericDiffers.ofAllInEitherSet(baseEmitter, Both.of(List.of("1"), List.of("1", "2"))),
                 baseEmitter.forChild("2").added());
-        assertDiffs(GenericDiffers.ofAllInEitherSet(baseEmitter::forChild, Both.of(List.of("1", "2"), List.of("1"))),
+        assertDiffs(GenericDiffers.ofAllInEitherSet(baseEmitter, Both.of(List.of("1", "2"), List.of("1"))),
                 baseEmitter.forChild("2").removed());
     }
 
     @Test
     void ofAllInEitherMap() {
-        assertDiffs(GenericDiffers.ofAllInEitherMap(baseEmitter::forChild, Both.of(Map.of("foo", "foo1"), Map.of("foo", "foo1"))));
+        assertDiffs(GenericDiffers.ofAllInEitherMap(baseEmitter, Both.of(Map.of("foo", "foo1"), Map.of("foo", "foo1"))));
 
         final Diff sentinel = Diff.emitterOf(Kind.of("sentinel")).added();
-        assertDiffs(GenericDiffers.ofAllInEitherMap(baseEmitter::forChild, Both.of(Map.of("foo", "foo1"), Map.of("foo", "foo1")),
+        assertDiffs(GenericDiffers.ofAllInEitherMap(baseEmitter, Both.of(Map.of("foo", "foo1"), Map.of("foo", "foo1")),
                 (emitter, values) -> Stream.of(sentinel)), sentinel);
-        assertDiffs(GenericDiffers.ofAllInEitherMap(baseEmitter::forChild, Both.of(Map.of("foo", "foo1"), Map.of("foo", "foo1")),
-                LinkedHashSet::new,
+        assertDiffs(GenericDiffers.ofAllInEitherMap(baseEmitter, builder -> builder.setSupplier(LinkedHashSet::new),
+                Both.of(Map.of("foo", "foo1"), Map.of("foo", "foo1")),
                 (emitter, values) -> Stream.of(sentinel)), sentinel);
-        assertDiffs(GenericDiffers.ofAllInEitherMap(baseEmitter::forChild, Both.of(Collections.emptyMap(), Map.of("foo", "foo1"))),
-                baseEmitter.forChild("foo").added());
-        assertDiffs(GenericDiffers.ofAllInEitherMap(baseEmitter::forChild, Both.of(Map.of("foo", "foo1"), Collections.emptyMap())),
-                baseEmitter.forChild("foo").removed());
+        assertDiffs(GenericDiffers.ofAllInEitherMap(baseEmitter, Both.of(Collections.emptyMap(), Map.of("foo", "foo1"))),
+                baseEmitter.forChild("foo").added("foo1"));
+        assertDiffs(GenericDiffers.ofAllInEitherMap(baseEmitter, Both.of(Map.of("foo", "foo1"), Collections.emptyMap())),
+                baseEmitter.forChild("foo").removed("foo1"));
 
     }
 }

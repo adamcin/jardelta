@@ -38,19 +38,20 @@ public class PidDesignatesDiffer implements Differ<PidDesignates> {
     }
 
     @NotNull
-    Stream<Diff> diffFirst(@NotNull Emitter emitter,
+    Stream<Diff> diffFirst(@NotNull Emitter baseEmitter,
                            @NotNull PidDesignates element,
                            @NotNull Both<MetaTypeDesignate> bothValues) {
         final List<Diff> diffs = new ArrayList<>();
 
         if (bothValues.left().isFactory() != bothValues.right().isFactory()) {
-            diffs.add(emitter.forChild("{isFactory}").changed());
+            diffs.add(baseEmitter.forChild("{isFactory}").changed());
         }
         final MetaTypeOCDDiffer ocdDiffer = new MetaTypeOCDDiffer();
         final Both<Set<String>> bothLocales = bothValues.map(MetaTypeDesignate::getLocales);
-        GenericDiffers.ofAllInEitherSet(Fun.compose1(PidDesignates::localeName, emitter::forChild),
-                        bothLocales, (childEmitter, locale) -> element.ocds(bothValues, locale)
-                                .map(Fun.zipValuesWithKeyFunc(value -> childEmitter))
+        GenericDiffers.ofAllInEitherSet(baseEmitter, builder -> builder.emitterProjection(
+                                (emitter, locale) -> emitter.forChild(PidDesignates.localeName(locale))),
+                        bothLocales, (localeEmitter, locale) -> element.ocds(bothValues, locale)
+                                .map(Fun.zipValuesWithKeyFunc(value -> localeEmitter))
                                 .flatMap(Fun.mapEntry(ocdDiffer::diff)))
                 .forEachOrdered(diffs::add);
         return diffs.stream();

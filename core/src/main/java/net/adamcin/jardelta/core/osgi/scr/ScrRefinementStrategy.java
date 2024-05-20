@@ -128,7 +128,7 @@ public class ScrRefinementStrategy implements RefinementStrategy {
 
         final ScrComponentsDiffer differ = new ScrComponentsDiffer();
         Stream<Diff> componentDiffs =
-                GenericDiffers.ofAllInEitherMap(emitter::forChild, bothGrouped, (childEmitter, bothLists) ->
+                GenericDiffers.ofAllInEitherMap(emitter, bothGrouped, (childEmitter, bothLists) ->
                         GenericDiffers.ofAtMostOne(childEmitter, bothLists.map(optList -> optList.orElse(Collections.emptyList())),
                                 (singleEmitter, singled) -> {
                                     ScrComponents components = new ScrComponents(singleEmitter.getName().getSegment(), singled);
