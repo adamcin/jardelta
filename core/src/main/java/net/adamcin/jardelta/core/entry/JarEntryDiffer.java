@@ -24,7 +24,7 @@ import net.adamcin.jardelta.api.diff.Emitter;
 import net.adamcin.jardelta.api.jar.EntryMeta;
 import net.adamcin.jardelta.core.Settings;
 import net.adamcin.jardelta.core.util.CompositeDiffer;
-import net.adamcin.jardelta.core.util.GenericDiffers;
+import net.adamcin.jardelta.api.diff.Differs;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.stream.Stream;
@@ -35,18 +35,18 @@ public class JarEntryDiffer implements Differ<JarEntry> {
 
     public JarEntryDiffer(final @NotNull Settings settings) {
         this.differs = CompositeDiffer.of(builder -> {
-            builder.put("", (emitter, element) -> GenericDiffers.ofObjectEquality(emitter, element.values().map(EntryMeta::getSha256)));
-            builder.put("{extra}", (emitter, element) -> GenericDiffers.ofOptionals(emitter, element.values().mapOptional(EntryMeta::getExtra)));
+            builder.put("", (emitter, element) -> Differs.diffEquality(emitter, element.values().map(EntryMeta::getSha256)));
+            builder.put("{extra}", (emitter, element) -> Differs.diffOptionals(emitter, element.values().mapOptional(EntryMeta::getExtra)));
             if (settings.isCompareLastModified()) {
-                builder.put("{lastModified}", (emitter, element) -> GenericDiffers.ofObjectEquality(emitter, element.values().map(EntryMeta::getSha256)));
+                builder.put("{lastModified}", (emitter, element) -> Differs.diffEquality(emitter, element.values().map(EntryMeta::getSha256)));
             }
         });
     }
 
     @Override
     public @NotNull Stream<Diff> diff(@NotNull Emitter baseEmitter, @NotNull JarEntry element) {
-        return GenericDiffers.ofOptionals(baseEmitter.forSubElement(element), element.values(),
-                (emitter, results) -> GenericDiffers.ofResults(emitter, results,
+        return Differs.diffOptionals(baseEmitter.forSubElement(element), element.values(),
+                (emitter, results) -> Differs.diffResults(emitter, results,
                         (resultEmitter, values) -> differs.diff(resultEmitter, element.project(Name.ROOT, values))));
     }
 }

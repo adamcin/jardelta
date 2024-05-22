@@ -14,16 +14,13 @@
  * limitations under the License.
  */
 
-package net.adamcin.jardelta.core.util;
+package net.adamcin.jardelta.api.diff;
 
-import net.adamcin.jardelta.api.diff.Diff;
-import net.adamcin.jardelta.api.diff.Differ;
-import net.adamcin.jardelta.api.diff.Element;
-import net.adamcin.jardelta.api.diff.Emitter;
 import net.adamcin.streamsupport.Both;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
@@ -59,6 +56,22 @@ public final class SetDiffer<E> implements Differ<Element<? extends Collection<E
         this.intersectDiffer = intersectDiffer;
     }
 
+    /**
+     * A utility function for use with sets that serves as both a reducer and combiner for a stream of
+     * collections reduced to a single collection of a possibly different type.
+     *
+     * @param left  the accumulator or left-hand binary operand
+     * @param right the next stream collection element or the right-hand binary operand
+     * @param <T>   the element type of the collections
+     * @param <C>   the type of the returned accumulator collection
+     * @param <D>   the type of the streamed collections
+     * @return a union collection
+     */
+    public static <T, C extends Collection<T>, D extends Collection<T>> C mergeSets(C left, D right) {
+        left.addAll(right);
+        return left;
+    }
+
     @Override
     public @NotNull Stream<Diff> diff(@NotNull Emitter baseEmitter,
                                       @NotNull Element<? extends Collection<E>> element) {
@@ -68,7 +81,7 @@ public final class SetDiffer<E> implements Differ<Element<? extends Collection<E
     public @NotNull Stream<Diff> diffSets(@NotNull Emitter baseEmitter,
                                           @NotNull Both<? extends Collection<E>> bothSets) {
         final Set<E> allValues = bothSets.stream().reduce(setSupplier.get(),
-                GenericDiffers::mergeSets, GenericDiffers::mergeSets);
+                SetDiffer::mergeSets, SetDiffer::mergeSets);
 
         Stream<Diff> stream = Stream.empty();
         for (E value : allValues) {
@@ -98,9 +111,9 @@ public final class SetDiffer<E> implements Differ<Element<? extends Collection<E
                 (baseEmitter, value) -> baseEmitter.forChild(value.toString());
 
         /**
-         * A {@link java.util.Set} supplier appropriate for element type {@code T}. Defaults to {@link java.util.TreeSet#TreeSet()}.
+         * A {@link java.util.Set} supplier appropriate for element type {@code T}. Defaults to {@link java.util.HashSet}.
          */
-        private Supplier<? extends Set<E>> setSupplier = TreeSet::new;
+        private Supplier<? extends Set<E>> setSupplier = HashSet::new;
 
         private Function<? super E, Both<Optional<String>>> hinter = value -> Both.empty();
 

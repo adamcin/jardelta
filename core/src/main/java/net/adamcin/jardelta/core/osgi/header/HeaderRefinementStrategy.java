@@ -34,7 +34,7 @@ import net.adamcin.jardelta.core.manifest.ManifestAttribute;
 import net.adamcin.jardelta.core.manifest.ManifestRefinementStrategy;
 import net.adamcin.jardelta.core.manifest.Manifests;
 import net.adamcin.jardelta.core.osgi.OsgiUtil;
-import net.adamcin.jardelta.core.osgi.ocd.PidDesignates;
+import net.adamcin.jardelta.core.osgi.ocd.PidDesignatesDiffer;
 import net.adamcin.streamsupport.Both;
 import net.adamcin.streamsupport.Fun;
 import org.apache.felix.metatype.DefaultMetaTypeProvider;
@@ -142,7 +142,7 @@ public class HeaderRefinementStrategy implements RefinementStrategy {
                             .map(Attributes.Name::toString)
                             .map(Name::of)
                             .map(name -> new ManifestAttribute(Manifests.NAME_MANIFEST.append(name)
-                                    .appendSegment(PidDesignates.localeName(locale)), bothLocalizedHeaders.map(dict ->
+                                    .appendSegment(PidDesignatesDiffer.localeName(locale)), bothLocalizedHeaders.map(dict ->
                                     Optional.ofNullable(dict.get(name.toString())))))
                             .flatMap(mfAttr -> localeDiffer.diff(attrEmitter, mfAttr));
                 });

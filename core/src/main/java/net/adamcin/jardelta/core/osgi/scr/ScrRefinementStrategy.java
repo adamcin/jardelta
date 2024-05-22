@@ -20,6 +20,7 @@ import aQute.bnd.osgi.Constants;
 import net.adamcin.jardelta.api.Kind;
 import net.adamcin.jardelta.api.Name;
 import net.adamcin.jardelta.api.diff.Diff;
+import net.adamcin.jardelta.api.diff.Differs;
 import net.adamcin.jardelta.api.diff.Diffs;
 import net.adamcin.jardelta.api.diff.Element;
 import net.adamcin.jardelta.api.diff.Emitter;
@@ -29,7 +30,6 @@ import net.adamcin.jardelta.core.Refinement;
 import net.adamcin.jardelta.core.RefinementStrategy;
 import net.adamcin.jardelta.core.entry.JarEntryDiffer;
 import net.adamcin.jardelta.core.osgi.OsgiUtil;
-import net.adamcin.jardelta.core.util.GenericDiffers;
 import net.adamcin.streamsupport.Both;
 import net.adamcin.streamsupport.Fun;
 import net.adamcin.streamsupport.Nothing;
@@ -128,8 +128,8 @@ public class ScrRefinementStrategy implements RefinementStrategy {
 
         final ScrComponentsDiffer differ = new ScrComponentsDiffer();
         Stream<Diff> componentDiffs =
-                GenericDiffers.ofAllInEitherMap(emitter, bothGrouped, (childEmitter, bothLists) ->
-                        GenericDiffers.ofAtMostOne(childEmitter, bothLists.map(optList -> optList.orElse(Collections.emptyList())),
+                Differs.diffMaps(emitter, bothGrouped, (childEmitter, bothLists) ->
+                        Differs.diffAtMostOne(childEmitter, bothLists.map(Map.Entry::getValue),
                                 (singleEmitter, singled) -> {
                                     ScrComponents components = new ScrComponents(singleEmitter.getName().getSegment(), singled);
                                     return differ.diff(singleEmitter, components);

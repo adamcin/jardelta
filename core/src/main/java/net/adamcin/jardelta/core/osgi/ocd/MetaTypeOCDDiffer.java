@@ -20,45 +20,42 @@ import jakarta.json.Json;
 import jakarta.json.stream.JsonCollectors;
 import net.adamcin.jardelta.api.diff.Diff;
 import net.adamcin.jardelta.api.diff.Differ;
+import net.adamcin.jardelta.api.diff.Differs;
+import net.adamcin.jardelta.api.diff.Element;
 import net.adamcin.jardelta.api.diff.Emitter;
-import net.adamcin.jardelta.core.util.GenericDiffers;
+import net.adamcin.jardelta.core.util.CompositeDiffer;
 import net.adamcin.streamsupport.Both;
 import net.adamcin.streamsupport.Fun;
 import org.jetbrains.annotations.NotNull;
 import org.osgi.service.metatype.AttributeDefinition;
 import org.osgi.service.metatype.ObjectClassDefinition;
 
-import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-public class MetaTypeOCDDiffer implements Differ<MetaTypeOCD> {
+public class MetaTypeOCDDiffer implements Differ<Element<ObjectClassDefinition>> {
+
+    private final CompositeDiffer<ObjectClassDefinition> differs = CompositeDiffer.of(builder -> {
+        builder.put("@name", Differs.ofNullables(ObjectClassDefinition::getName));
+        builder.put("@description", Differs.ofNullables(ObjectClassDefinition::getDescription));
+        builder.put("", Differs.ofMaps(ocd -> {
+            AttributeDefinition[] attributes = ocd.getAttributeDefinitions(ObjectClassDefinition.ALL);
+            Stream<AttributeDefinition> attributeStream = attributes == null ? Stream.empty() : Stream.of(attributes);
+            return attributeStream.collect(Collectors.groupingBy(AttributeDefinition::getID));
+        }, Differs.ofMapValues(Differs.ofAtMostOne(Function.identity(),
+                Differs.concat(
+                        this::diffADProperties,
+                        Differs.emitChild("@options", this::diffOptions))))));
+    });
 
     @Override
-    public @NotNull Stream<Diff> diff(@NotNull Emitter baseEmitter, @NotNull MetaTypeOCD element) {
+    public @NotNull Stream<Diff> diff(@NotNull Emitter baseEmitter, @NotNull Element<ObjectClassDefinition> element) {
         final Emitter emitter = baseEmitter.forSubElement(element);
-        final Stream<Diff> ocdElementDiffs = Stream.of(
-                Fun.toEntry("@name", element.values().mapOptional(ObjectClassDefinition::getName)),
-                Fun.toEntry("@description", element.values().mapOptional(ObjectClassDefinition::getDescription))
-        ).flatMap(Fun.mapEntry((key, values) -> GenericDiffers.ofOptionals(emitter.forChild(key), requireChars(values))));
-
-        final Both<Map<String, List<AttributeDefinition>>> bothAttributeDefinitions = element.values()
-                .map(ocd -> {
-                    AttributeDefinition[] attributes = ocd.getAttributeDefinitions(ObjectClassDefinition.ALL);
-                    Stream<AttributeDefinition> attributeStream = attributes == null ? Stream.empty() : Stream.of(attributes);
-                    return attributeStream.collect(Collectors.groupingBy(AttributeDefinition::getID));
-                });
-
-        return Stream.concat(ocdElementDiffs, GenericDiffers.ofAllInEitherMap(emitter, bothAttributeDefinitions,
-                (childEmitter, bothLists) ->
-                        GenericDiffers.ofAtMostOne(childEmitter, bothLists.map(Optional::get),
-                                (singleEmitter, bothAttributes) -> Stream.concat(diffADProperties(singleEmitter, bothAttributes),
-                                        diffOptions(singleEmitter, bothAttributes))
-                        )));
+        return differs.diff(emitter, element);
     }
 
     @NotNull
@@ -66,40 +63,37 @@ public class MetaTypeOCDDiffer implements Differ<MetaTypeOCD> {
         return values.map(value -> value.filter(Fun.inferTest1(String::isEmpty).negate()));
     }
 
-    Stream<Diff> diffADProperties(@NotNull Emitter baseEmitter, @NotNull Both<AttributeDefinition> bothAttributes) {
-        return Stream.concat(Stream.of(
-                        Fun.toEntry("@name", bothAttributes.mapOptional(AttributeDefinition::getName)),
-                        Fun.toEntry("@description", bothAttributes.mapOptional(AttributeDefinition::getDescription)),
-                        Fun.toEntry("@defaultValue", bothAttributes.mapOptional(AttributeDefinition::getDefaultValue)
-                                .map(odv -> odv.map(Stream::of).map(dvs -> dvs
-                                        .map(Json::createValue)
-                                        .collect(JsonCollectors.toJsonArray()).toString())))
-                ).flatMap(Fun.mapEntry((key, values) -> GenericDiffers.ofOptionals(baseEmitter.forChild(key), values))),
-                Stream.of(
-                        Fun.toEntry("@type", bothAttributes.map(AttributeDefinition::getType)),
-                        Fun.toEntry("@cardinality", bothAttributes.map(AttributeDefinition::getCardinality))
-                ).flatMap(Fun.mapEntry((key, values) -> GenericDiffers.ofObjectEquality(baseEmitter.forChild(key), values))));
+    Stream<Diff> diffADProperties(@NotNull Emitter baseEmitter, @NotNull Element<AttributeDefinition> element) {
+        return CompositeDiffer.<AttributeDefinition>of(builder -> {
+            builder.put("@name", Differs.ofNullables(AttributeDefinition::getName));
+            builder.put("@description", Differs.ofNullables(AttributeDefinition::getDescription));
+            builder.put("@defaultValue", Differs.ofOptionals(Fun.compose1(AttributeDefinition::getDefaultValue,
+                    dv -> Optional.ofNullable(dv).map(Stream::of).map(dvs -> dvs
+                            .map(Json::createValue)
+                            .collect(JsonCollectors.toJsonArray()).toString()))));
+            builder.put("@type", Differs.ofEquality(AttributeDefinition::getType));
+            builder.put("@cardinality", Differs.ofEquality(AttributeDefinition::getCardinality));
+        }).diff(baseEmitter, element);
     }
 
-    Stream<Diff> diffOptions(@NotNull Emitter baseEmitter,
-                             @NotNull Both<AttributeDefinition> bothAttributes) {
-        final Emitter emitter = baseEmitter.forChild("@options");
-        final Both<Optional<Map<String, Optional<String>>>> bothOptionsMaps = bothAttributes
+    static Element<Optional<Map<String, Optional<String>>>> projectOptionsMap(@NotNull Element<AttributeDefinition> element) {
+        return Element.of(element.name(), element.values()
                 .mapOptional(AttributeDefinition::getOptionValues)
-                .zipWith(bothAttributes.mapOptional(AttributeDefinition::getOptionLabels),
+                .zipWith(element.values().mapOptional(AttributeDefinition::getOptionLabels),
                         (maybeValues, maybeLabels) -> maybeValues.flatMap(values ->
                                 maybeLabels.map(labels -> IntStream.range(0, values.length).mapToObj(index ->
                                                 Fun.toEntry(values[index], index < labels.length
                                                         ? Optional.ofNullable(labels[index])
                                                         : Optional.<String>empty()))
-                                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)))));
-        return GenericDiffers.ofOptionals(emitter, bothOptionsMaps,
-                (optEmitter, optionsMap) -> GenericDiffers.ofAllInEitherMap(optEmitter, optionsMap,
-                        (childEmitter, optOptLabels) -> GenericDiffers.ofOptionals(childEmitter,
-                                optOptLabels.map(optOptLabel -> optOptLabel.flatMap(label -> label)),
-                                (labelEmitter, labels) -> labels.testBoth(Objects::equals)
-                                        ? Stream.empty()
-                                        : Stream.of(labelEmitter.changed()))
-                ));
+                                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue))))));
+    }
+
+    Stream<Diff> diffOptions(@NotNull Emitter emitter,
+                             @NotNull Element<AttributeDefinition> element) {
+        return Differs.projecting(MetaTypeOCDDiffer::projectOptionsMap,
+                Differs.ofOptionals(Function.identity(),
+                        Differs.ofMaps(Function.identity(),
+                                Differs.ofMapValues(Differs.ofOptionals(Function.identity()))
+        ))).diff(emitter, element);
     }
 }

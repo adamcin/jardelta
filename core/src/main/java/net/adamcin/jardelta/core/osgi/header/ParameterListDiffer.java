@@ -19,8 +19,10 @@ package net.adamcin.jardelta.core.osgi.header;
 import aQute.bnd.header.Attrs;
 import net.adamcin.jardelta.api.diff.Diff;
 import net.adamcin.jardelta.api.diff.Differ;
+import net.adamcin.jardelta.api.diff.Element;
 import net.adamcin.jardelta.api.diff.Emitter;
-import net.adamcin.jardelta.core.util.GenericDiffers;
+import net.adamcin.jardelta.api.diff.Differs;
+import net.adamcin.jardelta.api.diff.SetDiffer;
 import net.adamcin.streamsupport.Both;
 import org.jetbrains.annotations.NotNull;
 
@@ -31,7 +33,7 @@ import java.util.TreeSet;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public class ParameterListDiffer implements Differ<ParameterListElement> {
+public class ParameterListDiffer implements Differ<Element<Optional<ParameterList>>> {
     private final boolean allowDuplicates;
 
     public ParameterListDiffer(boolean allowDuplicates) {
@@ -39,18 +41,18 @@ public class ParameterListDiffer implements Differ<ParameterListElement> {
     }
 
     @Override
-    public @NotNull Stream<Diff> diff(@NotNull Emitter baseEmitter, @NotNull ParameterListElement element) {
+    public @NotNull Stream<Diff> diff(@NotNull Emitter baseEmitter, @NotNull Element<Optional<ParameterList>> element) {
         if (allowDuplicates) {
             return diffWithDuplicates(baseEmitter.forSubElement(element), element.values());
         } else {
-            return GenericDiffers.ofOptionals(baseEmitter.forSubElement(element),
+            return Differs.diffOptionals(baseEmitter.forSubElement(element),
                     element.values(), this::diffWithAtMostOne);
         }
     }
 
     @NotNull Stream<Diff> diffWithAtMostOne(@NotNull Emitter baseEmitter,
                                             @NotNull Both<ParameterList> values) {
-        return GenericDiffers.ofAtMostOne(baseEmitter, values.map(ParameterList::getAttrList),
+        return Differs.diffAtMostOne(baseEmitter, values.map(ParameterList::getAttrList),
                 (emitter, attrs) -> {
                     if (attrs.testBoth(Attrs::isEqual)) {
                         return Stream.empty();
@@ -66,8 +68,8 @@ public class ParameterListDiffer implements Differ<ParameterListElement> {
         final Set<String> allAttrNames = values.map(list -> list
                         .map(ParameterList::getAllAttrs)
                         .orElse(Collections.emptySet())).stream()
-                .reduce(new TreeSet<>(), GenericDiffers::mergeSets, GenericDiffers::mergeSets);
-        return GenericDiffers.ofAllInEitherSet(baseEmitter,
+                .reduce(new TreeSet<>(), SetDiffer::mergeSets, SetDiffer::mergeSets);
+        return Differs.diffSets(baseEmitter,
                 values.map(value -> value.map(list -> list.attrsToStrings(allAttrNames)
                                 .collect(Collectors.toSet()))
                         .orElse(Collections.emptySet())));

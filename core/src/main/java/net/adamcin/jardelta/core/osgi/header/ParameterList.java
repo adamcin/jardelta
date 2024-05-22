@@ -19,7 +19,7 @@ package net.adamcin.jardelta.core.osgi.header;
 import aQute.bnd.header.Attrs;
 import aQute.bnd.header.OSGiHeader;
 import aQute.bnd.header.Parameters;
-import net.adamcin.jardelta.core.util.GenericDiffers;
+import net.adamcin.jardelta.api.diff.SetDiffer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -40,7 +40,7 @@ public final class ParameterList {
         this.key = key;
         this.attrList = List.copyOf(attrList);
         this.allAttrs = Set.copyOf(this.attrList.stream().map(Attrs::keySet)
-                .reduce(new HashSet<>(), GenericDiffers::mergeSets, GenericDiffers::mergeSets));
+                .reduce(new HashSet<>(), SetDiffer::mergeSets, SetDiffer::mergeSets));
     }
 
     @NotNull

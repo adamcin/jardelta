@@ -20,11 +20,8 @@ import net.adamcin.jardelta.api.diff.Element;
 import net.adamcin.jardelta.api.Name;
 import net.adamcin.streamsupport.Both;
 import org.jetbrains.annotations.NotNull;
-import org.osgi.service.metatype.ObjectClassDefinition;
 
 import java.util.List;
-import java.util.Optional;
-import java.util.stream.Stream;
 
 public class PidDesignates implements Element<List<MetaTypeDesignate>> {
     private final String pid;
@@ -50,17 +47,4 @@ public class PidDesignates implements Element<List<MetaTypeDesignate>> {
         return values;
     }
 
-    @NotNull
-    public Stream<MetaTypeOCD> ocds(final @NotNull Both<MetaTypeDesignate> designates, final @NotNull String locale) {
-        final Both<Optional<ObjectClassDefinition>> ocds =
-                designates.mapOptional(designate -> designate.getObjectClassDefinitions().get(locale));
-        return ocds.left().flatMap(left -> ocds.right().map(right ->
-                        new MetaTypeOCD(name().appendSegment(localeName(locale)), Both.of(left, right))))
-                .stream();
-    }
-
-    @NotNull
-    public static String localeName(final @NotNull String locale) {
-        return String.format("{locale:%s}", locale);
-    }
 }

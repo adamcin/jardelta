@@ -22,8 +22,11 @@ import net.adamcin.streamsupport.Both;
 import net.adamcin.streamsupport.Fun;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.TreeMap;
 import java.util.function.Predicate;
 import java.util.jar.Attributes;
 import java.util.stream.Collectors;
@@ -69,5 +72,13 @@ public class ManifestAttribute implements Element<Optional<String>> {
 
     public static Predicate<String> inAttributeSet(@NotNull Attributes attributeSet) {
         return name -> attributeSet.containsKey(nameOf(name));
+    }
+
+    public static Map<Attributes.Name, String> attributesMap(@NotNull Attributes attributes) {
+        return attributes.entrySet().stream()
+                .filter(Fun.testKey(Attributes.Name.class::isInstance))
+                .map(Fun.mapKey(Attributes.Name.class::cast))
+                .map(Fun.mapValue(Object::toString))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (left, right) -> left, HashMap::new));
     }
 }

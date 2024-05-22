@@ -19,50 +19,29 @@ package net.adamcin.jardelta.core.manifest;
 import net.adamcin.jardelta.api.Kind;
 import net.adamcin.jardelta.api.diff.Diff;
 import net.adamcin.jardelta.api.diff.Differ;
+import net.adamcin.jardelta.api.diff.Differs;
 import net.adamcin.jardelta.api.diff.Emitter;
-import net.adamcin.jardelta.core.util.GenericDiffers;
-import net.adamcin.streamsupport.Both;
 import net.adamcin.streamsupport.Fun;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.Set;
-import java.util.jar.Attributes;
+import java.util.function.Function;
 import java.util.jar.Manifest;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class ManifestDiffer implements Differ<Manifests> {
 
     @Override
     public @NotNull Stream<Diff> diff(@NotNull Emitter baseEmitter, @NotNull Manifests element) {
-        return GenericDiffers.ofOptionals(baseEmitter.forSubElement(element), element.values(),
-                (emitter, values) -> Stream.concat(
-                        diffAttributes(emitter, values.map(Manifest::getMainAttributes)),
-                        GenericDiffers.ofAllInEitherMap(emitter, builder -> builder.emitterProjection(
-                                        (emit, entryName) -> emit
-                                                .ofSubKind(Kind.of("entry"))
-                                                .forChild(String.format("{entry:%s}", entryName))),
-                                values.map(Manifest::getEntries),
-                                (childEmitter, optAttrs) ->
-                                        GenericDiffers.ofOptionals(childEmitter, optAttrs, this::diffAttributes))));
-    }
-
-    @NotNull
-    Stream<Diff> diffAttributes(@NotNull Emitter baseEmitter, @NotNull Both<Attributes> bothAttributes) {
-        final Set<Attributes.Name> allNames = bothAttributes
-                .stream()
-                .flatMap(Fun.compose1(Attributes::keySet, Set::stream))
-                .filter(Attributes.Name.class::isInstance)
-                .map(Attributes.Name.class::cast)
-                .collect(Collectors.toSet());
-
-        return allNames.stream()
-                .flatMap(name -> {
-                    ManifestAttribute diffed = new ManifestAttribute(
-                            Manifests.NAME_MANIFEST.appendSegment(name.toString()),
-                            bothAttributes.mapOptional(attributes -> attributes.getValue(name)));
-                    return GenericDiffers.ofOptionals(baseEmitter.forSubElement(diffed), diffed.values());
-                });
+        return Differs.ofOptionals(Function.identity(),
+                        Differs.concat(
+                                Differs.ofMaps(Fun.compose1(Manifest::getMainAttributes, ManifestAttribute::attributesMap)),
+                                Differs.ofMapsCustomized(Manifest::getEntries, builder -> builder
+                                                .emitterProjection((emit, entryName) -> emit
+                                                        .ofSubKind(Kind.of("entry"))
+                                                        .forChild(String.format("{entry:%s}", entryName))),
+                                        Differs.ofMapValues(Differs.ofMaps(Function.identity())))
+                        ))
+                .diff(baseEmitter.forSubElement(element), element);
     }
 
 }

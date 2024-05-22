@@ -83,4 +83,18 @@ public interface Element<V> {
     default <T> Element<T> project(@NotNull Name relName, @NotNull Function<? super V, ? extends T> mapperFn) {
         return project(relName, values().map(mapperFn::apply));
     }
+
+    static <T> Element<T> of(@NotNull Name name, @NotNull Both<T> values) {
+        return new Element<>() {
+            @Override
+            public @NotNull Name name() {
+                return name;
+            }
+
+            @Override
+            public @NotNull Both<T> values() {
+                return values;
+            }
+        };
+    }
 }

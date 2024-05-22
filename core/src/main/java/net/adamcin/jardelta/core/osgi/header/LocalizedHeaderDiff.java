@@ -21,7 +21,7 @@ import net.adamcin.jardelta.api.diff.Emitter;
 import net.adamcin.jardelta.core.manifest.ManifestAttribute;
 import net.adamcin.jardelta.api.diff.Diff;
 import net.adamcin.jardelta.api.diff.Differ;
-import net.adamcin.jardelta.core.util.GenericDiffers;
+import net.adamcin.jardelta.api.diff.Differs;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.stream.Stream;
@@ -37,6 +37,6 @@ public class LocalizedHeaderDiff implements Differ<ManifestAttribute> {
 
     @Override
     public @NotNull Stream<Diff> diff(@NotNull Emitter baseEmitter, @NotNull ManifestAttribute element) {
-        return GenericDiffers.ofOptionals(Diff.emitterOf(DIFF_KIND).forSubElement(element), element.values());
+        return Differs.diffOptionals(Diff.emitterOf(DIFF_KIND).forSubElement(element), element.values());
     }
 }
