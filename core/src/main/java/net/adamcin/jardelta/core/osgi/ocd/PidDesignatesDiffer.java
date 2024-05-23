@@ -18,9 +18,9 @@ package net.adamcin.jardelta.core.osgi.ocd;
 
 import net.adamcin.jardelta.api.diff.Diff;
 import net.adamcin.jardelta.api.diff.Differ;
+import net.adamcin.jardelta.api.diff.Differs;
 import net.adamcin.jardelta.api.diff.Element;
 import net.adamcin.jardelta.api.diff.Emitter;
-import net.adamcin.jardelta.api.diff.Differs;
 import net.adamcin.streamsupport.Both;
 import net.adamcin.streamsupport.Fun;
 import org.jetbrains.annotations.NotNull;
@@ -33,14 +33,15 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-public class PidDesignatesDiffer implements Differ<PidDesignates> {
+public class PidDesignatesDiffer implements Differ<Element<List<MetaTypeDesignate>>> {
 
-    @NotNull
-    public static Stream<MetaTypeOCD> ocds(final @NotNull Element<MetaTypeDesignate> element, final @NotNull String locale) {
+    public static @NotNull Stream<Element<ObjectClassDefinition>>
+    objectClassDefinitions(final @NotNull Element<MetaTypeDesignate> element,
+                           final @NotNull String locale) {
         final Both<Optional<ObjectClassDefinition>> ocds =
                 element.values().mapOptional(designate -> designate.getObjectClassDefinitions().get(locale));
         return ocds.left().flatMap(left -> ocds.right().map(right ->
-                        new MetaTypeOCD(element.name().appendSegment(localeName(locale)), Both.of(left, right))))
+                        Element.of(element.name().appendSegment(localeName(locale)), Both.of(left, right))))
                 .stream();
     }
 
@@ -50,7 +51,7 @@ public class PidDesignatesDiffer implements Differ<PidDesignates> {
     }
 
     @Override
-    public @NotNull Stream<Diff> diff(@NotNull Emitter baseEmitter, @NotNull PidDesignates element) {
+    public @NotNull Stream<Diff> diff(@NotNull Emitter baseEmitter, @NotNull Element<List<MetaTypeDesignate>> element) {
         return Differs.ofAtMostOne(Function.<List<MetaTypeDesignate>>identity(),
                         this::diffFirst)
                 .diff(baseEmitter.forSubElement(element), element);
@@ -64,11 +65,11 @@ public class PidDesignatesDiffer implements Differ<PidDesignates> {
         if (element.values().map(MetaTypeDesignate::isFactory).testBoth((left, right) -> left != right)) {
             diffs.add(baseEmitter.forChild("{isFactory}").changed());
         }
-        final MetaTypeOCDDiffer ocdDiffer = new MetaTypeOCDDiffer();
+        final OCDDiffer ocdDiffer = new OCDDiffer();
         final Both<Set<String>> bothLocales = element.values().map(MetaTypeDesignate::getLocales);
         Differs.diffSets(baseEmitter, builder -> builder.emitterProjection(
                                 (emitter, locale) -> emitter.forChild(localeName(locale))),
-                        bothLocales, (localeEmitter, locale) -> ocds(element, locale)
+                        bothLocales, (localeEmitter, locale) -> objectClassDefinitions(element, locale)
                                 .map(Fun.zipValuesWithKeyFunc(value -> localeEmitter))
                                 .flatMap(Fun.mapEntry(ocdDiffer::diff)))
                 .forEachOrdered(diffs::add);

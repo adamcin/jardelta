@@ -223,6 +223,18 @@ public final class Differs {
     }
 
     /**
+     * Return a mapped element differ to compare objects on their equality, returning
+     * {@link java.util.stream.Stream#empty()} when {@link Objects#deepEquals(Object, Object)} returns true, and
+     * {@link net.adamcin.jardelta.api.diff.Verb#CHANGED} when it returns false.
+     *
+     * @param <T> element value type
+     * @return a new differ
+     */
+    public static <T> @NotNull Differ<Element<T>> ofEquality() {
+        return (emitter, element) -> Differs.diffEquality(emitter, element.values());
+    }
+
+    /**
      * Compare both optionals, returning {@link java.util.stream.Stream#empty()} for empty-empty,
      * {@link net.adamcin.jardelta.api.diff.Verb#ADDED} for empty-present, and {@link net.adamcin.jardelta.api.diff.Verb#REMOVED}
      * for present-empty, while delegating present-present to the provided {@link java.util.function.Function}.
@@ -434,6 +446,19 @@ public final class Differs {
     }
 
     /**
+     * Return a mapped element differ to compare optionals, returning
+     * {@link java.util.stream.Stream#empty()} for empty-empty, {@link net.adamcin.jardelta.api.diff.Verb#ADDED} for
+     * empty-present, and {@link net.adamcin.jardelta.api.diff.Verb#REMOVED} for present-empty, while delegating
+     * present-present to {@link #diffEquality(net.adamcin.jardelta.api.diff.Emitter, net.adamcin.streamsupport.Both)}.
+     *
+     * @param <T> element value type
+     * @return a new differ
+     */
+    public static <T> @NotNull Differ<Element<Optional<T>>> ofOptionals() {
+        return (emitter, element) -> Differs.diffOptionals(emitter, element.values());
+    }
+
+    /**
      * Return a mapped element differ to compare nullable values as optionals, returning
      * {@link java.util.stream.Stream#empty()} for empty-empty, {@link net.adamcin.jardelta.api.diff.Verb#ADDED} for
      * empty-present, and {@link net.adamcin.jardelta.api.diff.Verb#REMOVED} for present-empty, while delegating
@@ -542,6 +567,20 @@ public final class Differs {
      */
     public static <T, U> @NotNull Differ<Element<T>> ofResults(@NotNull Function<? super T, Result<U>> mapper) {
         return (emitter, element) -> Differs.diffResults(emitter, element.values().map(mapper));
+    }
+
+    /**
+     * Return a mapped element differ to compare results, delegating to
+     * {@link #diffEquality(net.adamcin.jardelta.api.diff.Emitter, net.adamcin.streamsupport.Both)} for
+     * success-success, while returning {@link net.adamcin.jardelta.api.diff.Verb#ERR_LEFT},
+     * {@link net.adamcin.jardelta.api.diff.Verb#ERR_RIGHT}, or both, for failure-success, success-failure, and
+     * failure-failure, respectively.
+     *
+     * @param <T> element value type
+     * @return a new differ
+     */
+    public static <T> @NotNull Differ<Element<Result<T>>> ofResults() {
+        return (emitter, element) -> Differs.diffResults(emitter, element.values());
     }
 
     /**
@@ -755,6 +794,23 @@ public final class Differs {
     }
 
     /**
+     * Return a mapped element differ to compare iterables based on cardinality, where only one comparable value is
+     * expected. Cases of zero-one, one-zero, and one-one are mapped to
+     * {@link net.adamcin.streamsupport.Result#success(Object)}, while a many cardinality on either side is mapped to a
+     * respective {@link net.adamcin.streamsupport.Result#failure(String)}. This pair is then delegated to
+     * {@link #diffResults(net.adamcin.jardelta.api.diff.Emitter, net.adamcin.streamsupport.Both,
+     * java.util.function.BiFunction)} and {@link #diffOptionals(net.adamcin.jardelta.api.diff.Emitter,
+     * net.adamcin.streamsupport.Both, java.util.function.BiFunction)}
+     * and then to {@link #diffEquality(net.adamcin.jardelta.api.diff.Emitter, net.adamcin.streamsupport.Both)}.
+     *
+     * @param <T> element value type
+     * @return a new differ
+     */
+    public static <T> @NotNull Differ<Element<? extends Iterable<T>>> ofAtMostOne() {
+        return (emitter, element) -> diffAtMostOne(emitter, element.values());
+    }
+
+    /**
      * Compare both collections by iterating over a set union of their elements, returning
      * {@link net.adamcin.jardelta.api.diff.Verb#ADDED} for !contains-contains,
      * {@link net.adamcin.jardelta.api.diff.Verb#REMOVED} for contains-!contains, and delegating to the provided
@@ -865,6 +921,19 @@ public final class Differs {
      */
     public static <T, U> @NotNull Differ<Element<T>> ofSets(@NotNull Function<? super T, ? extends Collection<U>> mapper) {
         return (emitter, element) -> diffSets(emitter, element.values().map(mapper));
+    }
+
+    /**
+     * Return a mapped element differ to compare collections by iterating over a set union of their elements, returning
+     * {@link net.adamcin.jardelta.api.diff.Verb#ADDED} for notContained-contained,
+     * {@link net.adamcin.jardelta.api.diff.Verb#REMOVED} for contained-notContained, and returning
+     * {@link java.util.stream.Stream#empty()} for contained-contained.
+     *
+     * @param <T> element value type
+     * @return a new differ
+     */
+    public static <T> @NotNull Differ<Element<? extends Collection<T>>> ofSets() {
+        return (emitter, element) -> diffSets(emitter, element.values());
     }
 
     public static <K, V, E> @NotNull Differ<Element<Map.Entry<K, V>>> ofMapValues(@NotNull BiFunction<? super K, ? super V, ? extends E> mapper,
@@ -1111,6 +1180,20 @@ public final class Differs {
      */
     public static <T, K, V> @NotNull Differ<Element<T>> ofMaps(@NotNull Function<? super T, ? extends Map<K, V>> mapper) {
         return (emitter, element) -> diffMaps(emitter, element.values().map(mapper));
+    }
+
+    /**
+     * Return a mapped element differ to compare maps by iterating over a set union of their keys, returning
+     * {@link net.adamcin.jardelta.api.diff.Verb#ADDED} for !containsKey-containsKey,
+     * {@link net.adamcin.jardelta.api.diff.Verb#REMOVED} for containsKey-!containsKey, and returning
+     * {@link java.util.stream.Stream#empty()} for containsKey-containsKey.
+     *
+     * @param <K> mapped key type
+     * @param <V> mapped value type
+     * @return a new differ
+     */
+    public static <K, V> @NotNull Differ<Element<Map<K, V>>> ofMaps() {
+        return (emitter, element) -> diffMaps(emitter, element.values());
     }
 
 }

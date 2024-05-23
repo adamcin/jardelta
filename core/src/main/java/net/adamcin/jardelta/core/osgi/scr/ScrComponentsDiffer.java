@@ -19,6 +19,7 @@ package net.adamcin.jardelta.core.osgi.scr;
 import net.adamcin.jardelta.api.diff.Diff;
 import net.adamcin.jardelta.api.diff.Differ;
 import net.adamcin.jardelta.api.diff.Differs;
+import net.adamcin.jardelta.api.diff.Element;
 import net.adamcin.jardelta.api.diff.Emitter;
 import net.adamcin.jardelta.core.util.CompositeDiffer;
 import net.adamcin.streamsupport.Fun;
@@ -32,7 +33,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public class ScrComponentsDiffer implements Differ<ScrComponents> {
+public class ScrComponentsDiffer implements Differ<Element<ComponentMetadata>> {
 
     private final ReferenceMetadatasDiffer referenceMetadatasDiffer = new ReferenceMetadatasDiffer();
 
@@ -58,7 +59,7 @@ public class ScrComponentsDiffer implements Differ<ScrComponents> {
     });
 
     @Override
-    public @NotNull Stream<Diff> diff(@NotNull Emitter baseEmitter, @NotNull ScrComponents element) {
+    public @NotNull Stream<Diff> diff(@NotNull Emitter baseEmitter, @NotNull Element<ComponentMetadata> element) {
         final Emitter emitter = baseEmitter.forSubElement(element);
         return differs.diff(emitter, element);
     }

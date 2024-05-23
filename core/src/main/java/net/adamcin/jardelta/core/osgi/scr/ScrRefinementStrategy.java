@@ -131,7 +131,9 @@ public class ScrRefinementStrategy implements RefinementStrategy {
                 Differs.diffMaps(emitter, bothGrouped, (childEmitter, bothLists) ->
                         Differs.diffAtMostOne(childEmitter, bothLists.map(Map.Entry::getValue),
                                 (singleEmitter, singled) -> {
-                                    ScrComponents components = new ScrComponents(singleEmitter.getName().getSegment(), singled);
+                                    Element<ComponentMetadata> components = Element.of(
+                                            ScrRefinementStrategy.NAME_PREFIX.appendSegment(singleEmitter.getName().getSegment()),
+                                            singled);
                                     return differ.diff(singleEmitter, components);
                                 }));
 

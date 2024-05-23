@@ -30,6 +30,7 @@ import org.jetbrains.annotations.NotNull;
 import org.osgi.service.metatype.AttributeDefinition;
 import org.osgi.service.metatype.ObjectClassDefinition;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
@@ -37,20 +38,41 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-public class MetaTypeOCDDiffer implements Differ<Element<ObjectClassDefinition>> {
+import static net.adamcin.jardelta.api.diff.Differs.ofMapValues;
+import static net.adamcin.jardelta.api.diff.Differs.ofMaps;
+import static net.adamcin.jardelta.api.diff.Differs.ofNullables;
+import static net.adamcin.jardelta.api.diff.Differs.ofOptionals;
+
+public class OCDDiffer implements Differ<Element<ObjectClassDefinition>> {
 
     private final CompositeDiffer<ObjectClassDefinition> differs = CompositeDiffer.of(builder -> {
-        builder.put("@name", Differs.ofNullables(ObjectClassDefinition::getName));
-        builder.put("@description", Differs.ofNullables(ObjectClassDefinition::getDescription));
-        builder.put("", Differs.ofMaps(ocd -> {
-            AttributeDefinition[] attributes = ocd.getAttributeDefinitions(ObjectClassDefinition.ALL);
-            Stream<AttributeDefinition> attributeStream = attributes == null ? Stream.empty() : Stream.of(attributes);
-            return attributeStream.collect(Collectors.groupingBy(AttributeDefinition::getID));
-        }, Differs.ofMapValues(Differs.ofAtMostOne(Function.identity(),
-                Differs.concat(
-                        this::diffADProperties,
-                        Differs.emitChild("@options", this::diffOptions))))));
+        builder.put("@name", ofNullables(ObjectClassDefinition::getName));
+        builder.put("@description", ofNullables(ObjectClassDefinition::getDescription));
+        builder.put("", ofMaps(OCDDiffer::mapAttributeDefinitionLists,
+                ofMapValues(Differs.ofAtMostOne(Function.identity(),
+                        CompositeDiffer.of(adPropsBuilder -> {
+                            // for every AttributeDefinition...
+                            adPropsBuilder.put("@name", ofNullables(AttributeDefinition::getName));
+                            adPropsBuilder.put("@description", ofNullables(AttributeDefinition::getDescription));
+                            adPropsBuilder.put("@defaultValue", ofOptionals(Fun.compose1(AttributeDefinition::getDefaultValue,
+                                    dv -> Optional.ofNullable(dv).map(Stream::of).map(dvs -> dvs
+                                            .map(Json::createValue)
+                                            .collect(JsonCollectors.toJsonArray()).toString()))));
+                            adPropsBuilder.put("@type", Differs.ofEquality(AttributeDefinition::getType));
+                            adPropsBuilder.put("@cardinality", Differs.ofEquality(AttributeDefinition::getCardinality));
+                            adPropsBuilder.put("@options",
+                                    Differs.projecting(OCDDiffer::projectOptionsMap,
+                                            ofOptionals(Function.identity(),
+                                                    ofMaps(Function.identity(),
+                                                            ofMapValues(ofOptionals())))));
+                        })))));
     });
+
+    static Map<String, List<AttributeDefinition>> mapAttributeDefinitionLists(@NotNull ObjectClassDefinition ocd) {
+        AttributeDefinition[] attributes = ocd.getAttributeDefinitions(ObjectClassDefinition.ALL);
+        Stream<AttributeDefinition> attributeStream = attributes == null ? Stream.empty() : Stream.of(attributes);
+        return attributeStream.collect(Collectors.groupingBy(AttributeDefinition::getID));
+    }
 
     @Override
     public @NotNull Stream<Diff> diff(@NotNull Emitter baseEmitter, @NotNull Element<ObjectClassDefinition> element) {
@@ -63,19 +85,6 @@ public class MetaTypeOCDDiffer implements Differ<Element<ObjectClassDefinition>>
         return values.map(value -> value.filter(Fun.inferTest1(String::isEmpty).negate()));
     }
 
-    Stream<Diff> diffADProperties(@NotNull Emitter baseEmitter, @NotNull Element<AttributeDefinition> element) {
-        return CompositeDiffer.<AttributeDefinition>of(builder -> {
-            builder.put("@name", Differs.ofNullables(AttributeDefinition::getName));
-            builder.put("@description", Differs.ofNullables(AttributeDefinition::getDescription));
-            builder.put("@defaultValue", Differs.ofOptionals(Fun.compose1(AttributeDefinition::getDefaultValue,
-                    dv -> Optional.ofNullable(dv).map(Stream::of).map(dvs -> dvs
-                            .map(Json::createValue)
-                            .collect(JsonCollectors.toJsonArray()).toString()))));
-            builder.put("@type", Differs.ofEquality(AttributeDefinition::getType));
-            builder.put("@cardinality", Differs.ofEquality(AttributeDefinition::getCardinality));
-        }).diff(baseEmitter, element);
-    }
-
     static Element<Optional<Map<String, Optional<String>>>> projectOptionsMap(@NotNull Element<AttributeDefinition> element) {
         return Element.of(element.name(), element.values()
                 .mapOptional(AttributeDefinition::getOptionValues)
@@ -86,14 +95,5 @@ public class MetaTypeOCDDiffer implements Differ<Element<ObjectClassDefinition>>
                                                         ? Optional.ofNullable(labels[index])
                                                         : Optional.<String>empty()))
                                         .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue))))));
-    }
-
-    Stream<Diff> diffOptions(@NotNull Emitter emitter,
-                             @NotNull Element<AttributeDefinition> element) {
-        return Differs.projecting(MetaTypeOCDDiffer::projectOptionsMap,
-                Differs.ofOptionals(Function.identity(),
-                        Differs.ofMaps(Function.identity(),
-                                Differs.ofMapValues(Differs.ofOptionals(Function.identity()))
-        ))).diff(emitter, element);
     }
 }

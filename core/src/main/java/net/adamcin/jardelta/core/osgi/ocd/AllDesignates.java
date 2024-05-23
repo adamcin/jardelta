@@ -16,8 +16,8 @@
 
 package net.adamcin.jardelta.core.osgi.ocd;
 
-import net.adamcin.jardelta.api.diff.Element;
 import net.adamcin.jardelta.api.Name;
+import net.adamcin.jardelta.api.diff.Element;
 import net.adamcin.streamsupport.Both;
 import org.jetbrains.annotations.NotNull;
 
@@ -62,13 +62,13 @@ public class AllDesignates implements Element<Map<String, List<MetaTypeDesignate
         return values;
     }
 
-    @NotNull
-    public PidDesignates bothDesignatesForPid(@NotNull final String pid) {
-        return new PidDesignates(pid, values().map(map -> map.getOrDefault(pid, Collections.emptyList())));
+    public @NotNull Element<List<MetaTypeDesignate>> bothDesignatesForPid(@NotNull final String pid) {
+        return Element.of(MetaTypeRefinementStrategy.NAME_PREFIX.appendSegment(pid),
+                values().map(map -> map.getOrDefault(pid, Collections.emptyList())));
     }
 
     @NotNull
-    public Stream<PidDesignates> stream() {
+    public Stream<Element<List<MetaTypeDesignate>>> stream() {
         return getPids().stream().map(this::bothDesignatesForPid);
     }
 }
