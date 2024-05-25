@@ -923,19 +923,6 @@ public final class Differs {
         return (emitter, element) -> diffSets(emitter, element.values().map(mapper));
     }
 
-    /**
-     * Return a mapped element differ to compare collections by iterating over a set union of their elements, returning
-     * {@link net.adamcin.jardelta.api.diff.Verb#ADDED} for notContained-contained,
-     * {@link net.adamcin.jardelta.api.diff.Verb#REMOVED} for contained-notContained, and returning
-     * {@link java.util.stream.Stream#empty()} for contained-contained.
-     *
-     * @param <T> element value type
-     * @return a new differ
-     */
-    public static <T> @NotNull Differ<Element<? extends Collection<T>>> ofSets() {
-        return (emitter, element) -> diffSets(emitter, element.values());
-    }
-
     public static <K, V, E> @NotNull Differ<Element<Map.Entry<K, V>>> ofMapValues(@NotNull BiFunction<? super K, ? super V, ? extends E> mapper,
                                                                                   @NotNull Differ<Element<E>> valueDiffer) {
         return (emitter, element) -> valueDiffer.diff(emitter, Element.of(element.name(), element.values().map(Fun.mapEntry(mapper))));

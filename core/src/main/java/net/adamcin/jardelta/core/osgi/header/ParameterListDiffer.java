@@ -16,25 +16,36 @@
 
 package net.adamcin.jardelta.core.osgi.header;
 
-import aQute.bnd.header.Attrs;
 import net.adamcin.jardelta.api.diff.Diff;
 import net.adamcin.jardelta.api.diff.Differ;
+import net.adamcin.jardelta.api.diff.Differs;
 import net.adamcin.jardelta.api.diff.Element;
 import net.adamcin.jardelta.api.diff.Emitter;
-import net.adamcin.jardelta.api.diff.Differs;
-import net.adamcin.jardelta.api.diff.SetDiffer;
-import net.adamcin.streamsupport.Both;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Collections;
 import java.util.Optional;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class ParameterListDiffer implements Differ<Element<Optional<ParameterList>>> {
     private final boolean allowDuplicates;
+
+    private static final Differ<Element<Optional<ParameterList>>> DIFFER_AT_MOST_ONE =
+            Differs.ofOptionals(Function.identity(),
+                    Differs.ofAtMostOne(ParameterList::getAttrsList,
+                            Differs.ofEquality(Function.identity())));
+
+    // project an Optional<ParameterList> into a 0-many Set<String> because
+    // "duplicate" keys are merely common prefixes of ;attr combos that together uniquely
+    // identify entries. The presence of the "key" of the parsed ParameterList should not
+    // be diffed as an element in isolation, because it is meaningless in that context.
+    private static final Differ<Element<Optional<ParameterList>>> DIFFER_ALLOW_DUPLICATES =
+            Differs.ofSets(oList -> oList.map(list -> list.getAttrsList().stream()
+                            .map(ParameterList.AttrsEntry::toString)
+                            .collect(Collectors.toList()))
+                    .orElse(Collections.emptyList()));
 
     public ParameterListDiffer(boolean allowDuplicates) {
         this.allowDuplicates = allowDuplicates;
@@ -42,36 +53,9 @@ public class ParameterListDiffer implements Differ<Element<Optional<ParameterLis
 
     @Override
     public @NotNull Stream<Diff> diff(@NotNull Emitter baseEmitter, @NotNull Element<Optional<ParameterList>> element) {
-        if (allowDuplicates) {
-            return diffWithDuplicates(baseEmitter.forSubElement(element), element.values());
-        } else {
-            return Differs.diffOptionals(baseEmitter.forSubElement(element),
-                    element.values(), this::diffWithAtMostOne);
-        }
-    }
-
-    @NotNull Stream<Diff> diffWithAtMostOne(@NotNull Emitter baseEmitter,
-                                            @NotNull Both<ParameterList> values) {
-        return Differs.diffAtMostOne(baseEmitter, values.map(ParameterList::getAttrList),
-                (emitter, attrs) -> {
-                    if (attrs.testBoth(Attrs::isEqual)) {
-                        return Stream.empty();
-                    } else {
-                        return Stream.of(emitter.changed(values.zip(attrs).map(entry ->
-                                entry.getKey().getKey() + entry.getValue().toString())));
-                    }
-                });
-    }
-
-    @NotNull Stream<Diff> diffWithDuplicates(@NotNull Emitter baseEmitter,
-                                             @NotNull Both<Optional<ParameterList>> values) {
-        final Set<String> allAttrNames = values.map(list -> list
-                        .map(ParameterList::getAllAttrs)
-                        .orElse(Collections.emptySet())).stream()
-                .reduce(new TreeSet<>(), SetDiffer::mergeSets, SetDiffer::mergeSets);
-        return Differs.diffSets(baseEmitter,
-                values.map(value -> value.map(list -> list.attrsToStrings(allAttrNames)
-                                .collect(Collectors.toSet()))
-                        .orElse(Collections.emptySet())));
+        final Differ<Element<Optional<ParameterList>>> differ = allowDuplicates
+                ? DIFFER_ALLOW_DUPLICATES
+                : DIFFER_AT_MOST_ONE;
+        return differ.diff(baseEmitter.forSubElement(element), element);
     }
 }

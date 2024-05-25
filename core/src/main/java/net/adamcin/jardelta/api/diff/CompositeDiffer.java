@@ -14,14 +14,8 @@
  * limitations under the License.
  */
 
-package net.adamcin.jardelta.core.util;
+package net.adamcin.jardelta.api.diff;
 
-import net.adamcin.jardelta.api.Name;
-import net.adamcin.jardelta.api.diff.Diff;
-import net.adamcin.jardelta.api.diff.Differ;
-import net.adamcin.jardelta.api.diff.Element;
-import net.adamcin.jardelta.api.diff.Emitter;
-import net.adamcin.streamsupport.Both;
 import net.adamcin.streamsupport.Fun;
 import org.jetbrains.annotations.NotNull;
 import org.osgi.annotation.versioning.ConsumerType;
@@ -29,11 +23,11 @@ import org.osgi.annotation.versioning.ConsumerType;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.stream.Stream;
 
 /**
  * Aggregates zero-to-many differs of elements and element projections when element structures are more complex.
+ * Construct using {@link net.adamcin.jardelta.api.diff.CompositeDiffer#of(java.util.function.Consumer)}.
  *
  * @param <V> the type parameter of the element being diffed
  */
@@ -41,7 +35,7 @@ public final class CompositeDiffer<V> implements Differ<Element<V>> {
 
     /**
      * A builder of a map of child names to differs, which constitutes the structure of a new
-     * {@link net.adamcin.jardelta.core.util.CompositeDiffer}.
+     * {@link CompositeDiffer}.
      *
      * @param <T> the element value type
      */
@@ -60,12 +54,12 @@ public final class CompositeDiffer<V> implements Differ<Element<V>> {
     }
 
     /**
-     * Builds a {@link net.adamcin.jardelta.core.util.CompositeDiffer} using the provided {@code builderConsumer}
-     * function, which is given a {@link net.adamcin.jardelta.core.util.CompositeDiffer.Builder}.
+     * Builds a {@link CompositeDiffer} using the provided {@code builderConsumer}
+     * function, which is given a {@link CompositeDiffer.Builder}.
      *
      * @param builderConsumer the builder consumer function
      * @param <T>             the {@link net.adamcin.jardelta.api.diff.Element} type parameter
-     * @return a new {@link net.adamcin.jardelta.core.util.CompositeDiffer}
+     * @return a new {@link CompositeDiffer}
      */
     @NotNull
     public static <T> CompositeDiffer<T> of(@NotNull Consumer<Builder<T>> builderConsumer) {
@@ -88,22 +82,4 @@ public final class CompositeDiffer<V> implements Differ<Element<V>> {
                 .flatMap(Fun.mapEntry((key, func) -> func.diff(subEmitter.forChild(key), values)));
     }
 
-
-    @NotNull
-    public static <T, U> Map.Entry<Emitter, Element<U>> projectChild(@NotNull Emitter parentEmitter,
-                                                                     @NotNull Element<T> element,
-                                                                     @NotNull String childName,
-                                                                     @NotNull Both<U> newValues) {
-        final Name segment = Name.ofSegment(childName);
-        return Fun.toEntry(parentEmitter.forChild(childName), element.project(segment, newValues));
-    }
-
-    @NotNull
-    public static <T, U> Map.Entry<Emitter, Element<U>> projectChild(@NotNull Emitter parentEmitter,
-                                                                     @NotNull Element<T> element,
-                                                                     @NotNull String childName,
-                                                                     @NotNull Function<? super T, ? extends U> mapperFn) {
-        final Both<U> newValues = element.values().map(mapperFn::apply);
-        return projectChild(parentEmitter, element, childName, newValues);
-    }
 }

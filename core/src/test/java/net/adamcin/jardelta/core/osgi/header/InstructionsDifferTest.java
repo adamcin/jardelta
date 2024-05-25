@@ -16,7 +16,6 @@
 
 package net.adamcin.jardelta.core.osgi.header;
 
-import aQute.bnd.header.Attrs;
 import aQute.bnd.header.Parameters;
 import aQute.bnd.osgi.Constants;
 import net.adamcin.jardelta.api.Kind;
@@ -27,8 +26,6 @@ import net.adamcin.jardelta.api.diff.Emitter;
 import net.adamcin.streamsupport.Both;
 import org.junit.jupiter.api.Test;
 
-import java.util.Collections;
-import java.util.List;
 import java.util.jar.Attributes;
 
 import static net.adamcin.jardelta.test.DiffTestUtil.assertDiffs;
@@ -94,7 +91,7 @@ class InstructionsDifferTest {
                         .forChild("osgi.service;effective:=active;filter:=\"(objectClass=com.example.ServiceC)\";resolution:=optional")
                         .removed(),
                 osgiServiceEmitter
-                        .forChild("osgi.service;effective:=active;filter:=\"(objectClass=com.example.ServiceC)\";resolution:=\"\"")
+                        .forChild("osgi.service;effective:=active;filter:=\"(objectClass=com.example.ServiceC)\"")
                         .added());
     }
 

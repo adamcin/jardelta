@@ -80,7 +80,7 @@ public class JarMetaTypeProvider extends DefaultMetaTypeProvider {
     }
 
     private MetaTypeDesignate getDesignatesForPid(final @NotNull Set<String> locales, final @NotNull String pid, final boolean isFactory) {
-        return new MetaTypeDesignate(pid, isFactory, locales, locales.stream()
+        return new MetaTypeDesignate(pid, isFactory, locales.stream()
                 .flatMap(locale -> Stream.ofNullable(getObjectClassDefinition(pid, DEFAULT_LOCALE.equals(locale) ? null : locale))
                         .map(ocd -> Fun.toEntry(locale, ocd))).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
     }

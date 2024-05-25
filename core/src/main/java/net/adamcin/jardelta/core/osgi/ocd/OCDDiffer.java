@@ -23,7 +23,7 @@ import net.adamcin.jardelta.api.diff.Differ;
 import net.adamcin.jardelta.api.diff.Differs;
 import net.adamcin.jardelta.api.diff.Element;
 import net.adamcin.jardelta.api.diff.Emitter;
-import net.adamcin.jardelta.core.util.CompositeDiffer;
+import net.adamcin.jardelta.api.diff.CompositeDiffer;
 import net.adamcin.streamsupport.Both;
 import net.adamcin.streamsupport.Fun;
 import org.jetbrains.annotations.NotNull;

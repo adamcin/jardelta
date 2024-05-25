@@ -29,6 +29,6 @@ class ParameterListTest {
         Parameters parameters = new Parameters(requireCapabilities, null, true);
         ParameterList parameterList = ParameterList.fromDuplicates("osgi.service", parameters);
         assertNotNull(parameterList);
-        assertEquals(3, parameterList.getAttrList().size());
+        assertEquals(3, parameterList.getAttrsList().size());
     }
 }

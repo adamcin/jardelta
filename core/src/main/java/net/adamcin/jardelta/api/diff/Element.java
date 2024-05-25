@@ -48,6 +48,28 @@ public interface Element<V> {
     Both<V> values();
 
     /**
+     * Create a new generic element with {@code name} and {@code values}.
+     *
+     * @param name   the element name
+     * @param values both values
+     * @param <T>    the value type
+     * @return a new {@link net.adamcin.jardelta.api.diff.Element}
+     */
+    static <T> Element<T> of(@NotNull Name name, @NotNull Both<T> values) {
+        return new Element<>() {
+            @Override
+            public @NotNull Name name() {
+                return name;
+            }
+
+            @Override
+            public @NotNull Both<T> values() {
+                return values;
+            }
+        };
+    }
+
+    /**
      * Project this element's values into a descendant element.
      *
      * @param relName   the name suffix to append to this name
@@ -58,17 +80,7 @@ public interface Element<V> {
     @NotNull
     default <T> Element<T> project(@NotNull Name relName, @NotNull Both<T> newValues) {
         final Name newName = name().append(relName);
-        return new Element<>() {
-            @Override
-            public @NotNull Name name() {
-                return newName;
-            }
-
-            @Override
-            public @NotNull Both<T> values() {
-                return newValues;
-            }
-        };
+        return of(newName, newValues);
     }
 
     /**
@@ -84,17 +96,4 @@ public interface Element<V> {
         return project(relName, values().map(mapperFn::apply));
     }
 
-    static <T> Element<T> of(@NotNull Name name, @NotNull Both<T> values) {
-        return new Element<>() {
-            @Override
-            public @NotNull Name name() {
-                return name;
-            }
-
-            @Override
-            public @NotNull Both<T> values() {
-                return values;
-            }
-        };
-    }
 }

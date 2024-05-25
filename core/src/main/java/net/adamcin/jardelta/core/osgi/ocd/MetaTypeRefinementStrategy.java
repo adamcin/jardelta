@@ -90,7 +90,7 @@ public class MetaTypeRefinementStrategy implements RefinementStrategy {
         } else {
             final AllDesignates allDesignates = new AllDesignates(providers);
             final Emitter designatesEmitter = Diff.emitterOf(KIND);
-            final PidDesignatesDiffer designatesDiffer = new PidDesignatesDiffer();
+            final MetaTypeDesignateDiffer designatesDiffer = new MetaTypeDesignateDiffer();
             return new Refinement(superseded, allDesignates.stream()
                     .flatMap(element -> designatesDiffer.diff(designatesEmitter, element))
                     .collect(Diffs.collector()));

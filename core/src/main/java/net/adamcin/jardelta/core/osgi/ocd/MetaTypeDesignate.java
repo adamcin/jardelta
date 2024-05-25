@@ -20,21 +20,17 @@ import org.jetbrains.annotations.NotNull;
 import org.osgi.service.metatype.ObjectClassDefinition;
 
 import java.util.Map;
-import java.util.Set;
 
 public class MetaTypeDesignate {
     private final String pid;
     private final boolean isFactory;
-    private final Set<String> locales;
     private final Map<String, ObjectClassDefinition> objectClassDefinitions;
 
     public MetaTypeDesignate(@NotNull String pid,
                              boolean isFactory,
-                             @NotNull Set<String> locales,
                              @NotNull Map<String, ObjectClassDefinition> objectClassDefinitions) {
         this.pid = pid;
         this.isFactory = isFactory;
-        this.locales = Set.copyOf(locales);
         this.objectClassDefinitions = objectClassDefinitions;
     }
 
@@ -45,11 +41,6 @@ public class MetaTypeDesignate {
 
     public boolean isFactory() {
         return isFactory;
-    }
-
-    @NotNull
-    public Set<String> getLocales() {
-        return locales;
     }
 
     @NotNull

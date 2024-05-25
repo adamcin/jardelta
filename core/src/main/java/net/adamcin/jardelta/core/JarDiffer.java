@@ -22,7 +22,6 @@ import net.adamcin.jardelta.api.diff.Differ;
 import net.adamcin.jardelta.api.diff.Element;
 import net.adamcin.jardelta.api.diff.Emitter;
 import net.adamcin.jardelta.api.jar.OpenJar;
-import net.adamcin.jardelta.core.entry.JarEntry;
 import net.adamcin.jardelta.core.entry.JarEntryDiffer;
 import net.adamcin.streamsupport.Both;
 import net.adamcin.streamsupport.Fun;
@@ -52,7 +51,7 @@ public class JarDiffer implements Differ<Element<OpenJar>> {
 
         final JarEntryDiffer differ = new JarEntryDiffer(settings);
         return allNames.stream()
-                .map(resourceName -> new JarEntry(resourceName,
+                .map(resourceName -> Element.of(resourceName,
                         resources.map(entry -> entry.getKey().getEntryMeta(resourceName))))
                 .flatMap(entry -> differ.diff(baseEmitter, entry));
     }

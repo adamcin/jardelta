@@ -17,7 +17,6 @@
 package net.adamcin.jardelta.core.osgi.header;
 
 import aQute.bnd.header.Attrs;
-import aQute.bnd.header.OSGiHeader;
 import aQute.bnd.header.Parameters;
 import net.adamcin.jardelta.api.diff.SetDiffer;
 import org.jetbrains.annotations.NotNull;
@@ -27,19 +26,19 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public final class ParameterList {
     private final String key;
-    private final List<Attrs> attrList;
+    private final List<AttrsEntry> attrsList;
     private final Set<String> allAttrs;
 
-    private ParameterList(@NotNull String key, @NotNull List<Attrs> attrList) {
+    private ParameterList(@NotNull String key, @NotNull List<Attrs> attrsList) {
         this.key = key;
-        this.attrList = List.copyOf(attrList);
-        this.allAttrs = Set.copyOf(this.attrList.stream().map(Attrs::keySet)
+        this.attrsList = attrsList.stream().map(AttrsEntry::new).collect(Collectors.toList());
+        this.allAttrs = Set.copyOf(this.attrsList.stream().map(AttrsEntry::attrNames)
                 .reduce(new HashSet<>(), SetDiffer::mergeSets, SetDiffer::mergeSets));
     }
 
@@ -49,8 +48,53 @@ public final class ParameterList {
     }
 
     @NotNull
-    public List<Attrs> getAttrList() {
-        return attrList;
+    public List<AttrsEntry> getAttrsList() {
+        return attrsList;
+    }
+
+    public final class AttrsEntry {
+        private final Attrs attrs;
+        private final String normalized;
+
+        private AttrsEntry(@NotNull Attrs attrs) {
+            this.attrs = attrs;
+            Attrs normalAttrs = new Attrs();
+            attrs.keySet().stream().sorted().forEach(name -> {
+                Attrs.Type type = attrs.getType(name);
+                normalAttrs.put(name, type, attrs.get(name));
+            });
+            this.normalized = normalAttrs.toString();
+        }
+
+        public @NotNull String getKey() {
+            return ParameterList.this.key;
+        }
+
+        public Set<String> attrNames() {
+            return attrs.keySet();
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            AttrsEntry that = (AttrsEntry) o;
+            return getKey().equals(that.getKey()) && this.attrs.isEqual(that.attrs);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(toString());
+        }
+
+        @Override
+        public String toString() {
+            return ParameterList.this.key + (attrs.isEmpty() ? "" : ";") + toAttrsString();
+        }
+
+        public String toAttrsString() {
+            return normalized;
+        }
     }
 
     @NotNull
@@ -58,21 +102,9 @@ public final class ParameterList {
         return allAttrs;
     }
 
-    @NotNull
-    public Stream<String> attrsToStrings(@NotNull Set<String> names) {
-        return attrList.stream().map(attrs -> {
-            final StringBuilder sb = new StringBuilder(key);
-            names.forEach(name -> {
-                sb.append(';').append(name).append('=');
-                OSGiHeader.quote(sb, attrs.get(name, ""));
-            });
-            return sb.toString();
-        });
-    }
-
     @Override
     public String toString() {
-        return attrList.stream().map(attrs -> key + attrs.toString()).collect(Collectors.joining(","));
+        return attrsList.stream().map(AttrsEntry::toString).collect(Collectors.joining(","));
     }
 
     public boolean isEqual(final @Nullable ParameterList other) {
@@ -80,16 +112,16 @@ public final class ParameterList {
             return true;
         }
 
-        if (other == null || !this.key.equals(other.key) || attrList.size() != other.attrList.size()) {
+        if (other == null || !this.key.equals(other.key) || attrsList.size() != other.attrsList.size()) {
             return false;
         }
 
-        if (attrList.isEmpty()) {
+        if (attrsList.isEmpty()) {
             return true;
         }
 
-        for (int i = 0; i < attrList.size(); i++) {
-            if (!attrList.get(i).isEqual(other.attrList.get(i))) {
+        for (int i = 0; i < attrsList.size(); i++) {
+            if (!attrsList.get(i).equals(other.attrsList.get(i))) {
                 return false;
             }
         }

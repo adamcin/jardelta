@@ -17,36 +17,40 @@
 package net.adamcin.jardelta.core.entry;
 
 import net.adamcin.jardelta.api.Kind;
-import net.adamcin.jardelta.api.Name;
+import net.adamcin.jardelta.api.diff.CompositeDiffer;
 import net.adamcin.jardelta.api.diff.Diff;
 import net.adamcin.jardelta.api.diff.Differ;
+import net.adamcin.jardelta.api.diff.Differs;
+import net.adamcin.jardelta.api.diff.Element;
 import net.adamcin.jardelta.api.diff.Emitter;
 import net.adamcin.jardelta.api.jar.EntryMeta;
 import net.adamcin.jardelta.core.Settings;
-import net.adamcin.jardelta.core.util.CompositeDiffer;
-import net.adamcin.jardelta.api.diff.Differs;
+import net.adamcin.streamsupport.Result;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Optional;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
-public class JarEntryDiffer implements Differ<JarEntry> {
+public class JarEntryDiffer implements Differ<Element<Optional<Result<EntryMeta>>>> {
     public static final Kind DIFF_KIND = Kind.of("entry");
-    private final CompositeDiffer<EntryMeta> differs;
+    private final Differ<Element<EntryMeta>> differs;
 
     public JarEntryDiffer(final @NotNull Settings settings) {
         this.differs = CompositeDiffer.of(builder -> {
-            builder.put("", (emitter, element) -> Differs.diffEquality(emitter, element.values().map(EntryMeta::getSha256)));
-            builder.put("{extra}", (emitter, element) -> Differs.diffOptionals(emitter, element.values().mapOptional(EntryMeta::getExtra)));
+            builder.put("", Differs.ofEquality(EntryMeta::getSha256));
+            builder.put("{extra}", Differs.ofNullables(EntryMeta::getExtra));
             if (settings.isCompareLastModified()) {
-                builder.put("{lastModified}", (emitter, element) -> Differs.diffEquality(emitter, element.values().map(EntryMeta::getSha256)));
+                builder.put("{lastModified}", Differs.ofEquality(EntryMeta::getLastModified));
             }
         });
     }
 
     @Override
-    public @NotNull Stream<Diff> diff(@NotNull Emitter baseEmitter, @NotNull JarEntry element) {
-        return Differs.diffOptionals(baseEmitter.forSubElement(element), element.values(),
-                (emitter, results) -> Differs.diffResults(emitter, results,
-                        (resultEmitter, values) -> differs.diff(resultEmitter, element.project(Name.ROOT, values))));
+    public @NotNull Stream<Diff> diff(@NotNull Emitter baseEmitter,
+                                      @NotNull Element<Optional<Result<EntryMeta>>> element) {
+        return Differs.ofOptionals(Function.identity(),
+                        Differs.ofResults(Function.identity(), differs))
+                .diff(baseEmitter.forSubElement(element), element);
     }
 }
