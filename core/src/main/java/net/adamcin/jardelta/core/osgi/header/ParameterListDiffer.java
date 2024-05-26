@@ -29,10 +29,10 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public class ParameterListDiffer implements Differ<Element<Optional<ParameterList>>> {
+public class ParameterListDiffer implements Differ<Optional<ParameterList>> {
     private final boolean allowDuplicates;
 
-    private static final Differ<Element<Optional<ParameterList>>> DIFFER_AT_MOST_ONE =
+    private static final Differ<Optional<ParameterList>> DIFFER_AT_MOST_ONE =
             Differs.ofOptionals(Function.identity(),
                     Differs.ofAtMostOne(ParameterList::getAttrsList,
                             Differs.ofEquality(Function.identity())));
@@ -41,7 +41,7 @@ public class ParameterListDiffer implements Differ<Element<Optional<ParameterLis
     // "duplicate" keys are merely common prefixes of ;attr combos that together uniquely
     // identify entries. The presence of the "key" of the parsed ParameterList should not
     // be diffed as an element in isolation, because it is meaningless in that context.
-    private static final Differ<Element<Optional<ParameterList>>> DIFFER_ALLOW_DUPLICATES =
+    private static final Differ<Optional<ParameterList>> DIFFER_ALLOW_DUPLICATES =
             Differs.ofSets(oList -> oList.map(list -> list.getAttrsList().stream()
                             .map(ParameterList.AttrsEntry::toString)
                             .collect(Collectors.toList()))
@@ -52,8 +52,9 @@ public class ParameterListDiffer implements Differ<Element<Optional<ParameterLis
     }
 
     @Override
-    public @NotNull Stream<Diff> diff(@NotNull Emitter baseEmitter, @NotNull Element<Optional<ParameterList>> element) {
-        final Differ<Element<Optional<ParameterList>>> differ = allowDuplicates
+    public @NotNull Stream<Diff> diff(@NotNull Emitter baseEmitter,
+                                      @NotNull Element<Optional<ParameterList>> element) {
+        final Differ<Optional<ParameterList>> differ = allowDuplicates
                 ? DIFFER_ALLOW_DUPLICATES
                 : DIFFER_AT_MOST_ONE;
         return differ.diff(baseEmitter.forSubElement(element), element);

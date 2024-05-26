@@ -131,6 +131,12 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>net.adamcin.jardelta</groupId>
+            <artifactId>jardelta-core</artifactId>
+            <classifier>tests</classifier>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
             <scope>test</scope>

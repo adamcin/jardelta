@@ -39,13 +39,13 @@ import java.security.cert.X509Certificate;
 import java.util.Collections;
 import java.util.Dictionary;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.function.Predicate;
 import java.util.jar.Attributes;
 import java.util.jar.Manifest;
@@ -69,6 +69,7 @@ final class BundleFacade implements Bundle {
     private final MockBundle mockBundle;
     private static final BundleContext mockBundleContext = MockOsgi.newBundleContext();
     private final Map<String, Properties> localeCache;
+
     public BundleFacade(@NotNull OpenJarImpl jar) {
         this.jar = jar;
         this.manifest = uncheck0(jar::getManifest).get();
@@ -82,20 +83,48 @@ final class BundleFacade implements Bundle {
                 .flatMap(Stream::of)
                 .collect(Collectors.toSet());
         final String localePrefix = emptyMetaTypeProvider.getLocalePrefix();
-        final Map<String, Properties> localeCache = new TreeMap<>();
+        final Map<String, String> localePaths = new HashMap<>();
+        localePaths.put("", localePrefix + ".properties");
         locales.forEach(locale -> {
-            final String localePathName = localePrefix + "_" + locale + ".properties";
-            if (this.jar.getEntryNames().contains(bundlePathToName(localePathName))) {
-                result0(() -> {
-                    Properties props = new Properties();
-                    try (InputStream inputStream = this.getResource(localePathName).openStream()) {
-                        props.load(inputStream);
-                        return props;
-                    }
-                }).get().toOptional().ifPresent(props -> localeCache.put(locale, props));
+            if (!locale.isEmpty()) {
+                final String localePathName = localePrefix + "_" + locale + ".properties";
+                localePaths.put(locale, localePathName);
             }
         });
+        final Map<String, Properties> localeCache = new HashMap<>();
+        localePaths.keySet().forEach(key -> computeLocale(localePaths, localeCache, key));
         this.localeCache = localeCache;
+    }
+
+    private Properties computeLocale(@NotNull Map<String, String> localePaths,
+                                     @NotNull Map<String, Properties> localeCache,
+                                     @NotNull String locale) {
+        return localeCache.computeIfAbsent(locale, key -> {
+            Properties baseProperties;
+            if (locale.contains("_")) {
+                baseProperties = computeLocale(localePaths, localeCache,
+                        locale.substring(0, locale.lastIndexOf('_')));
+            } else if (!locale.isEmpty()) {
+                baseProperties = computeLocale(localePaths, localeCache, "");
+            } else {
+                baseProperties = new Properties();
+            }
+            Properties properties = new Properties(baseProperties);
+            if (localePaths.containsKey(locale)) {
+                final String localePathName = localePaths.get(locale);
+                if (this.jar.getEntryNames().contains(bundlePathToName(localePathName))) {
+                    result0(() -> {
+                        Properties props = new Properties();
+                        try (InputStream inputStream = this.getResource(localePathName).openStream()) {
+                            props.load(inputStream);
+                            return props;
+                        }
+                    }).get().toOptional().ifPresent(properties::putAll);
+                }
+            }
+            return properties;
+        });
+
     }
 
     @Override
@@ -174,10 +203,26 @@ final class BundleFacade implements Bundle {
         return jar.urlFor(name);
     }
 
+    private Properties getLocaleProperties(final @NotNull String locale) {
+        if (localeCache.containsKey(locale)) {
+            return new Properties(localeCache.get(locale));
+        } else if (locale.isEmpty()) {
+            return new Properties();
+        } else {
+            return new Properties(getLocaleProperties(locale.contains("_")
+                    ? locale.substring(0, locale.lastIndexOf('_'))
+                    : ""));
+        }
+    }
+
     @Override
     public Dictionary<String, String> getHeaders(String locale) {
-        if (locale == null || locale.isEmpty()) {
+        if (locale != null && locale.isEmpty()) {
             return getHeaders();
+        }
+
+        if (locale == null) {
+            locale = "";
         }
 
         final Attributes localizedHeaders = jar.getLocalizedHeaders();
@@ -186,14 +231,13 @@ final class BundleFacade implements Bundle {
         }
 
         final Attributes headers = new Attributes(manifest.getMainAttributes());
-        final Optional<Properties> localeProps = Optional.ofNullable(localeCache.get(locale));
+        final Properties localeProps = getLocaleProperties(locale);
         for (Map.Entry<Object, Object> entry : headers.entrySet()) {
             final Attributes.Name name = (Attributes.Name) entry.getKey();
             final String value = entry.getValue().toString();
             if (value.startsWith("%")) {
                 final String key = value.substring(1);
-                localeProps.map(props -> props.getProperty(key, key));
-                headers.put(name, value);
+                headers.put(name, localeProps.getProperty(key, key));
             }
         }
 

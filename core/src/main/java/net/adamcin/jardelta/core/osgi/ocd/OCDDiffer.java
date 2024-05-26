@@ -18,12 +18,12 @@ package net.adamcin.jardelta.core.osgi.ocd;
 
 import jakarta.json.Json;
 import jakarta.json.stream.JsonCollectors;
+import net.adamcin.jardelta.api.diff.CompositeDiffer;
 import net.adamcin.jardelta.api.diff.Diff;
 import net.adamcin.jardelta.api.diff.Differ;
 import net.adamcin.jardelta.api.diff.Differs;
 import net.adamcin.jardelta.api.diff.Element;
 import net.adamcin.jardelta.api.diff.Emitter;
-import net.adamcin.jardelta.api.diff.CompositeDiffer;
 import net.adamcin.streamsupport.Both;
 import net.adamcin.streamsupport.Fun;
 import org.jetbrains.annotations.NotNull;
@@ -43,7 +43,7 @@ import static net.adamcin.jardelta.api.diff.Differs.ofMaps;
 import static net.adamcin.jardelta.api.diff.Differs.ofNullables;
 import static net.adamcin.jardelta.api.diff.Differs.ofOptionals;
 
-public class OCDDiffer implements Differ<Element<ObjectClassDefinition>> {
+public class OCDDiffer implements Differ<ObjectClassDefinition> {
 
     private final CompositeDiffer<ObjectClassDefinition> differs = CompositeDiffer.of(builder -> {
         builder.put("@name", ofNullables(ObjectClassDefinition::getName));

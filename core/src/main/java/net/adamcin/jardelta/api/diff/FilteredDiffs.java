@@ -59,7 +59,7 @@ public interface FilteredDiffs {
         return filter(diff -> diff.getName().equals(name));
     }
 
-    default @NotNull FilteredDiffs withActions(@NotNull Verb... verbs) {
+    default @NotNull FilteredDiffs withVerbs(@NotNull Verb... verbs) {
         if (verbs.length == 0) {
             return filter(diff -> false);
         } else if (verbs.length == 1) {

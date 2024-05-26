@@ -20,18 +20,21 @@ import net.adamcin.jardelta.api.Kind;
 import net.adamcin.jardelta.api.diff.Diff;
 import net.adamcin.jardelta.api.diff.Differ;
 import net.adamcin.jardelta.api.diff.Differs;
+import net.adamcin.jardelta.api.diff.Element;
 import net.adamcin.jardelta.api.diff.Emitter;
 import net.adamcin.streamsupport.Fun;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.jar.Manifest;
 import java.util.stream.Stream;
 
-public class ManifestDiffer implements Differ<Manifests> {
+public class ManifestDiffer implements Differ<Optional<Manifest>> {
 
     @Override
-    public @NotNull Stream<Diff> diff(@NotNull Emitter baseEmitter, @NotNull Manifests element) {
+    public @NotNull Stream<Diff> diff(@NotNull Emitter baseEmitter,
+                                      @NotNull Element<Optional<Manifest>> element) {
         return Differs.ofOptionals(Function.identity(),
                         Differs.concat(
                                 Differs.ofMaps(Fun.compose1(Manifest::getMainAttributes, ManifestAttribute::attributesMap)),

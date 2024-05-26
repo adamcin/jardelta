@@ -69,6 +69,7 @@
                     <instructions>
                         <Bundle-Category>testing</Bundle-Category>
                         <Bundle-SymbolicName>net.adamcin.jardelta.testing.example</Bundle-SymbolicName>
+                        <Bundle-Description>Example Bundle SCR</Bundle-Description>
                         <Automatic-Module-Name>net.adamcin.jardelta.testing.example</Automatic-Module-Name>
                         <!-- Enable processing of OSGI DS component annotations -->
                         <_dsannotations>*</_dsannotations>

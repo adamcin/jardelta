@@ -70,6 +70,12 @@
                 <version>0.1.1-SNAPSHOT</version>
             </dependency>
             <dependency>
+                <groupId>net.adamcin.jardelta</groupId>
+                <artifactId>jardelta-core</artifactId>
+                <classifier>tests</classifier>
+                <version>0.1.1-SNAPSHOT</version>
+            </dependency>
+            <dependency>
                 <groupId>org.jetbrains</groupId>
                 <artifactId>annotations</artifactId>
                 <version>24.1.0</version>

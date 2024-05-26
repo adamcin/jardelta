@@ -32,9 +32,9 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-public class JarEntryDiffer implements Differ<Element<Optional<Result<EntryMeta>>>> {
+public class JarEntryDiffer implements Differ<Optional<Result<EntryMeta>>> {
     public static final Kind DIFF_KIND = Kind.of("entry");
-    private final Differ<Element<EntryMeta>> differs;
+    private final Differ<EntryMeta> differs;
 
     public JarEntryDiffer(final @NotNull Settings settings) {
         this.differs = CompositeDiffer.of(builder -> {

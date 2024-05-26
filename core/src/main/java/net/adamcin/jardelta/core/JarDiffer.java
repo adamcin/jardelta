@@ -32,7 +32,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Stream;
 
-public class JarDiffer implements Differ<Element<OpenJar>> {
+public class JarDiffer implements Differ<OpenJar> {
     private final Settings settings;
 
     public JarDiffer(@NotNull Settings settings) {

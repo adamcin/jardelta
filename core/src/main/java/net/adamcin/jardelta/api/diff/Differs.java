@@ -25,6 +25,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -53,27 +54,38 @@ public final class Differs {
      * @param <T>     the common differ element type
      * @return a single differ composed of the input differs
      */
-    @SafeVarargs
-    public static <T> Differ<Element<T>> concat(@NotNull Differ<Element<T>>... differs) {
+    public static <T> Differ<T> concat(@NotNull Iterable<Differ<T>> differs) {
         return (baseEmitter, element) -> {
             Stream<Diff> diffStream = Stream.empty();
-            for (Differ<Element<T>> differ : differs) {
+            for (Differ<T> differ : differs) {
                 diffStream = Stream.concat(diffStream, differ.diff(baseEmitter, element));
             }
             return diffStream;
         };
     }
 
-    public static <T> Differ<Element<T>> emitChild(@NotNull String childName, @NotNull Differ<Element<T>> differ) {
+    /**
+     * Concatenate multiple differs of the same type into a single differ of that type.
+     *
+     * @param differs an array of differs
+     * @param <T>     the common differ element type
+     * @return a single differ composed of the input differs
+     */
+    @SafeVarargs
+    public static <T> Differ<T> concat(@NotNull Differ<T>... differs) {
+        return concat(List.of(differs));
+    }
+
+    public static <T> Differ<T> emitChild(@NotNull String childName, @NotNull Differ<T> differ) {
         return (baseEmitter, element) -> differ.diff(baseEmitter.forChild(childName), element);
     }
 
-    public static <T> Differ<Element<T>> emitKind(@NotNull Kind subKind, @NotNull Differ<Element<T>> differ) {
+    public static <T> Differ<T> emitKind(@NotNull Kind subKind, @NotNull Differ<T> differ) {
         return (baseEmitter, element) -> differ.diff(baseEmitter.ofSubKind(subKind), element);
     }
 
-    public static <T, U> Differ<Element<T>> projecting(@NotNull Function<? super Element<T>, Element<U>> projector,
-                                                       @NotNull Differ<Element<U>> differ) {
+    public static <T, U> Differ<T> projecting(@NotNull Function<? super Element<T>, Element<U>> projector,
+                                              @NotNull Differ<U> differ) {
         return (emitter, baseElement) -> differ.diff(emitter, projector.apply(baseElement));
     }
 
@@ -118,9 +130,9 @@ public final class Differs {
      * @param <U>          mapped value type
      * @return a new differ
      */
-    public static <T, U> @NotNull Differ<Element<T>> ofEquality(@NotNull Function<? super T, ? extends U> mapper,
-                                                                @NotNull Function<? super U, Optional<String>> hinter,
-                                                                @NotNull BiPredicate<? super U, ? super U> equalityTest) {
+    public static <T, U> @NotNull Differ<T> ofEquality(@NotNull Function<? super T, ? extends U> mapper,
+                                                       @NotNull Function<? super U, Optional<String>> hinter,
+                                                       @NotNull BiPredicate<? super U, ? super U> equalityTest) {
         return (emitter, element) -> Differs.diffEquality(hinter, emitter, element.values().map(mapper), equalityTest);
     }
 
@@ -153,8 +165,8 @@ public final class Differs {
      * @param <U>          mapped value type
      * @return a new differ
      */
-    public static <T, U> @NotNull Differ<Element<T>> ofEquality(@NotNull Function<? super T, ? extends U> mapper,
-                                                                @NotNull BiPredicate<? super U, ? super U> equalityTest) {
+    public static <T, U> @NotNull Differ<T> ofEquality(@NotNull Function<? super T, ? extends U> mapper,
+                                                       @NotNull BiPredicate<? super U, ? super U> equalityTest) {
         return (emitter, element) -> Differs.diffEquality(emitter, element.values().map(mapper), equalityTest);
     }
 
@@ -187,8 +199,8 @@ public final class Differs {
      * @param <U>    mapped value type
      * @return a new differ
      */
-    public static <T, U> @NotNull Differ<Element<T>> ofEquality(@NotNull Function<? super T, ? extends U> mapper,
-                                                                @NotNull Function<? super U, Optional<String>> hinter) {
+    public static <T, U> @NotNull Differ<T> ofEquality(@NotNull Function<? super T, ? extends U> mapper,
+                                                       @NotNull Function<? super U, Optional<String>> hinter) {
         return (emitter, element) -> Differs.diffEquality(hinter, emitter, element.values().map(mapper));
     }
 
@@ -218,7 +230,7 @@ public final class Differs {
      * @param <T>    element value type
      * @return a new differ
      */
-    public static <T> @NotNull Differ<Element<T>> ofEquality(@NotNull Function<? super T, ?> mapper) {
+    public static <T> @NotNull Differ<T> ofEquality(@NotNull Function<? super T, ?> mapper) {
         return (emitter, element) -> Differs.diffEquality(emitter, element.values().map(mapper));
     }
 
@@ -230,7 +242,7 @@ public final class Differs {
      * @param <T> element value type
      * @return a new differ
      */
-    public static <T> @NotNull Differ<Element<T>> ofEquality() {
+    public static <T> @NotNull Differ<T> ofEquality() {
         return (emitter, element) -> Differs.diffEquality(emitter, element.values());
     }
 
@@ -276,9 +288,9 @@ public final class Differs {
      * @param <U>           mapped optional value type
      * @return a new differ
      */
-    public static <T, U> @NotNull Differ<Element<T>> ofOptionals(@NotNull Function<? super T, Optional<U>> mapper,
-                                                                 @NotNull Differ<Element<U>> ifBothPresent,
-                                                                 @NotNull Function<? super U, Optional<String>> hinter) {
+    public static <T, U> @NotNull Differ<T> ofOptionals(@NotNull Function<? super T, Optional<U>> mapper,
+                                                        @NotNull Differ<U> ifBothPresent,
+                                                        @NotNull Function<? super U, Optional<String>> hinter) {
         return (emitter, element) -> Differs.diffOptionals(hinter, emitter, element.values().map(mapper),
                 (emit, mapped) -> ifBothPresent.diff(emit, Element.of(emit.getName(), mapped)));
     }
@@ -296,9 +308,9 @@ public final class Differs {
      * @param <U>           mapped optional value type
      * @return a new differ
      */
-    public static <T, U> @NotNull Differ<Element<T>> ofNullables(@NotNull Function<? super T, U> mapper,
-                                                                 @NotNull Function<? super U, Optional<String>> hinter,
-                                                                 @NotNull Differ<Element<U>> ifBothPresent) {
+    public static <T, U> @NotNull Differ<T> ofNullables(@NotNull Function<? super T, U> mapper,
+                                                        @NotNull Function<? super U, Optional<String>> hinter,
+                                                        @NotNull Differ<U> ifBothPresent) {
         return (emitter, element) -> Differs.diffOptionals(hinter, emitter, element.values().mapOptional(mapper),
                 (emit, mapped) -> ifBothPresent.diff(emit, Element.of(emit.getName(), mapped)));
     }
@@ -334,8 +346,8 @@ public final class Differs {
      * @param <U>           mapped optional value type
      * @return a new differ
      */
-    public static <T, U> @NotNull Differ<Element<T>> ofOptionals(@NotNull Function<? super T, Optional<U>> mapper,
-                                                                 @NotNull Differ<Element<U>> ifBothPresent) {
+    public static <T, U> @NotNull Differ<T> ofOptionals(@NotNull Function<? super T, Optional<U>> mapper,
+                                                        @NotNull Differ<U> ifBothPresent) {
         return (emitter, element) -> Differs.diffOptionals(emitter, element.values().map(mapper),
                 (emit, mapped) -> ifBothPresent.diff(emit, Element.of(emit.getName(), mapped)));
     }
@@ -352,8 +364,8 @@ public final class Differs {
      * @param <U>           mapped optional value type
      * @return a new differ
      */
-    public static <T, U> @NotNull Differ<Element<T>> ofNullables(@NotNull Function<? super T, U> mapper,
-                                                                 @NotNull Differ<Element<U>> ifBothPresent) {
+    public static <T, U> @NotNull Differ<T> ofNullables(@NotNull Function<? super T, U> mapper,
+                                                        @NotNull Differ<U> ifBothPresent) {
         return (emitter, element) -> Differs.diffOptionals(emitter, element.values().mapOptional(mapper),
                 (emit, mapped) -> ifBothPresent.diff(emit, Element.of(emit.getName(), mapped)));
     }
@@ -390,8 +402,8 @@ public final class Differs {
      * @param <U>    mapped optional value type
      * @return a new differ
      */
-    public static <T, U> @NotNull Differ<Element<T>> ofOptionals(@NotNull Function<? super T, Optional<U>> mapper,
-                                                                 @NotNull Function<? super U, Optional<String>> hinter) {
+    public static <T, U> @NotNull Differ<T> ofOptionals(@NotNull Function<? super T, Optional<U>> mapper,
+                                                        @NotNull Function<? super U, Optional<String>> hinter) {
         return (emitter, element) -> Differs.diffOptionals(hinter, emitter, element.values().map(mapper));
     }
 
@@ -407,8 +419,8 @@ public final class Differs {
      * @param <U>    mapped optional value type
      * @return a new differ
      */
-    public static <T, U> @NotNull Differ<Element<T>> ofNullables(@NotNull Function<? super T, ? extends U> mapper,
-                                                                 @NotNull Function<? super U, Optional<String>> hinter) {
+    public static <T, U> @NotNull Differ<T> ofNullables(@NotNull Function<? super T, ? extends U> mapper,
+                                                        @NotNull Function<? super U, Optional<String>> hinter) {
         return (emitter, element) -> Differs.diffOptionals(hinter, emitter, element.values().mapOptional(mapper));
     }
 
@@ -441,7 +453,7 @@ public final class Differs {
      * @param <U>    mapped optional value type
      * @return a new differ
      */
-    public static <T, U> @NotNull Differ<Element<T>> ofOptionals(@NotNull Function<? super T, Optional<U>> mapper) {
+    public static <T, U> @NotNull Differ<T> ofOptionals(@NotNull Function<? super T, Optional<U>> mapper) {
         return (emitter, element) -> Differs.diffOptionals(emitter, element.values().map(mapper));
     }
 
@@ -454,7 +466,7 @@ public final class Differs {
      * @param <T> element value type
      * @return a new differ
      */
-    public static <T> @NotNull Differ<Element<Optional<T>>> ofOptionals() {
+    public static <T> @NotNull Differ<Optional<T>> ofOptionals() {
         return (emitter, element) -> Differs.diffOptionals(emitter, element.values());
     }
 
@@ -468,7 +480,7 @@ public final class Differs {
      * @param <T>    element value type
      * @return a new differ
      */
-    public static <T> @NotNull Differ<Element<T>> ofNullables(@NotNull Function<? super T, ?> mapper) {
+    public static <T> @NotNull Differ<T> ofNullables(@NotNull Function<? super T, ?> mapper) {
         return (emitter, element) -> Differs.diffOptionals(emitter, element.values().mapOptional(mapper));
     }
 
@@ -509,8 +521,8 @@ public final class Differs {
      * @param <U>           mapped result value type
      * @return a new differ
      */
-    public static <T, U> @NotNull Differ<Element<T>> ofResults(@NotNull Function<? super T, Result<U>> mapper,
-                                                               @NotNull Differ<Element<U>> ifBothSuccess) {
+    public static <T, U> @NotNull Differ<T> ofResults(@NotNull Function<? super T, Result<U>> mapper,
+                                                      @NotNull Differ<U> ifBothSuccess) {
         return (emitter, element) -> Differs.diffResults(emitter, element.values().map(mapper),
                 (emit, mapped) -> ifBothSuccess.diff(emit, Element.of(emit.getName(), mapped)));
     }
@@ -527,8 +539,8 @@ public final class Differs {
      * @param <U>           mapped result value type
      * @return a new differ
      */
-    public static <T, U> @NotNull Differ<Element<T>> ofThrowing(@NotNull ThrowingFunction<? super T, U> mapper,
-                                                                @NotNull Differ<Element<U>> ifBothSuccess) {
+    public static <T, U> @NotNull Differ<T> ofThrowing(@NotNull ThrowingFunction<? super T, U> mapper,
+                                                       @NotNull Differ<U> ifBothSuccess) {
         return (emitter, element) -> Differs.diffResults(emitter, element.values().map(Fun.result1(mapper)),
                 (emit, mapped) -> ifBothSuccess.diff(emit, Element.of(emit.getName(), mapped)));
     }
@@ -565,7 +577,7 @@ public final class Differs {
      * @param <U>    mapped result value type
      * @return a new differ
      */
-    public static <T, U> @NotNull Differ<Element<T>> ofResults(@NotNull Function<? super T, Result<U>> mapper) {
+    public static <T, U> @NotNull Differ<T> ofResults(@NotNull Function<? super T, Result<U>> mapper) {
         return (emitter, element) -> Differs.diffResults(emitter, element.values().map(mapper));
     }
 
@@ -579,7 +591,7 @@ public final class Differs {
      * @param <T> element value type
      * @return a new differ
      */
-    public static <T> @NotNull Differ<Element<Result<T>>> ofResults() {
+    public static <T> @NotNull Differ<Result<T>> ofResults() {
         return (emitter, element) -> Differs.diffResults(emitter, element.values());
     }
 
@@ -595,7 +607,7 @@ public final class Differs {
      * @param <U>    mapped result value type
      * @return a new differ
      */
-    public static <T, U> @NotNull Differ<Element<T>> ofThrowing(@NotNull ThrowingFunction<? super T, ? extends U> mapper) {
+    public static <T, U> @NotNull Differ<T> ofThrowing(@NotNull ThrowingFunction<? super T, ? extends U> mapper) {
         return (emitter, element) -> Differs.diffResults(emitter, element.values().map(Fun.result1(mapper)));
     }
 
@@ -656,9 +668,9 @@ public final class Differs {
      * @param <U>          mapped result value type
      * @return a new differ
      */
-    public static <T, U> @NotNull Differ<Element<T>> ofAtMostOne(@NotNull Function<? super T, ? extends Iterable<U>> mapper,
-                                                                 @NotNull Differ<Element<U>> ifBothSingle,
-                                                                 @NotNull Function<? super U, Optional<String>> hinter) {
+    public static <T, U> @NotNull Differ<T> ofAtMostOne(@NotNull Function<? super T, ? extends Iterable<U>> mapper,
+                                                        @NotNull Differ<U> ifBothSingle,
+                                                        @NotNull Function<? super U, Optional<String>> hinter) {
         return (emitter, element) -> diffAtMostOne(hinter, emitter, element.values().map(mapper),
                 (emit, mapped) -> ifBothSingle.diff(emit, Element.of(emit.getName(), mapped)));
     }
@@ -702,8 +714,8 @@ public final class Differs {
      * @param <U>          mapped result value type
      * @return a new differ
      */
-    public static <T, U> @NotNull Differ<Element<T>> ofAtMostOne(@NotNull Function<? super T, ? extends Iterable<U>> mapper,
-                                                                 @NotNull Differ<Element<U>> ifBothSingle) {
+    public static <T, U> @NotNull Differ<T> ofAtMostOne(@NotNull Function<? super T, ? extends Iterable<U>> mapper,
+                                                        @NotNull Differ<U> ifBothSingle) {
         return (emitter, element) -> diffAtMostOne(emitter, element.values().map(mapper),
                 (emit, mapped) -> ifBothSingle.diff(emit, Element.of(emit.getName(), mapped)));
     }
@@ -748,8 +760,8 @@ public final class Differs {
      * @param <U>    mapped result value type
      * @return a new differ
      */
-    public static <T, U> @NotNull Differ<Element<T>> ofAtMostOne(@NotNull Function<? super T, ? extends Iterable<U>> mapper,
-                                                                 @NotNull Function<? super U, Optional<String>> hinter) {
+    public static <T, U> @NotNull Differ<T> ofAtMostOne(@NotNull Function<? super T, ? extends Iterable<U>> mapper,
+                                                        @NotNull Function<? super U, Optional<String>> hinter) {
         return (emitter, element) -> diffAtMostOne(hinter, emitter, element.values().map(mapper));
     }
 
@@ -789,7 +801,7 @@ public final class Differs {
      * @param <U>    mapped result value type
      * @return a new differ
      */
-    public static <T, U> @NotNull Differ<Element<T>> ofAtMostOne(@NotNull Function<? super T, ? extends Iterable<U>> mapper) {
+    public static <T, U> @NotNull Differ<T> ofAtMostOne(@NotNull Function<? super T, ? extends Iterable<U>> mapper) {
         return (emitter, element) -> diffAtMostOne(emitter, element.values().map(mapper));
     }
 
@@ -806,7 +818,7 @@ public final class Differs {
      * @param <T> element value type
      * @return a new differ
      */
-    public static <T> @NotNull Differ<Element<? extends Iterable<T>>> ofAtMostOne() {
+    public static <T> @NotNull Differ<? extends Iterable<T>> ofAtMostOne() {
         return (emitter, element) -> diffAtMostOne(emitter, element.values());
     }
 
@@ -845,9 +857,9 @@ public final class Differs {
      * @param <U>            mapped set element type
      * @return a new differ
      */
-    public static <T, U> @NotNull Differ<Element<T>> ofSets(@NotNull Function<? super T, ? extends Collection<U>> mapper,
-                                                            @NotNull Function<SetDiffer.SetDifferBuilder<U>, SetDiffer.SetDifferBuilder<U>> builderCustomizer,
-                                                            @NotNull BiFunction<Emitter, ? super U, Stream<Diff>> ifIntersection) {
+    public static <T, U> @NotNull Differ<T> ofSets(@NotNull Function<? super T, ? extends Collection<U>> mapper,
+                                                   @NotNull Function<SetDiffer.SetDifferBuilder<U>, SetDiffer.SetDifferBuilder<U>> builderCustomizer,
+                                                   @NotNull BiFunction<Emitter, ? super U, Stream<Diff>> ifIntersection) {
         return (emitter, element) -> diffSets(emitter, builderCustomizer, element.values().map(mapper), ifIntersection);
     }
 
@@ -884,8 +896,8 @@ public final class Differs {
      * @param <U>            mapped set element type
      * @return a new differ
      */
-    public static <T, U> @NotNull Differ<Element<T>> ofSets(@NotNull Function<? super T, ? extends Collection<U>> mapper,
-                                                            @NotNull BiFunction<Emitter, ? super U, Stream<Diff>> ifIntersection) {
+    public static <T, U> @NotNull Differ<T> ofSets(@NotNull Function<? super T, ? extends Collection<U>> mapper,
+                                                   @NotNull BiFunction<Emitter, ? super U, Stream<Diff>> ifIntersection) {
         return (emitter, element) -> diffSets(emitter, element.values().map(mapper), ifIntersection);
     }
 
@@ -919,20 +931,20 @@ public final class Differs {
      * @param <U>    mapped set element type
      * @return a new differ
      */
-    public static <T, U> @NotNull Differ<Element<T>> ofSets(@NotNull Function<? super T, ? extends Collection<U>> mapper) {
+    public static <T, U> @NotNull Differ<T> ofSets(@NotNull Function<? super T, ? extends Collection<U>> mapper) {
         return (emitter, element) -> diffSets(emitter, element.values().map(mapper));
     }
 
-    public static <K, V, E> @NotNull Differ<Element<Map.Entry<K, V>>> ofMapValues(@NotNull BiFunction<? super K, ? super V, ? extends E> mapper,
-                                                                                  @NotNull Differ<Element<E>> valueDiffer) {
+    public static <K, V, E> @NotNull Differ<Map.Entry<K, V>> ofMapValues(@NotNull BiFunction<? super K, ? super V, ? extends E> mapper,
+                                                                         @NotNull Differ<E> valueDiffer) {
         return (emitter, element) -> valueDiffer.diff(emitter, Element.of(element.name(), element.values().map(Fun.mapEntry(mapper))));
     }
 
-    public static <K, V> @NotNull Differ<Element<Map.Entry<K, V>>> ofMapValues(@NotNull Differ<Element<V>> valueDiffer) {
+    public static <K, V> @NotNull Differ<Map.Entry<K, V>> ofMapValues(@NotNull Differ<V> valueDiffer) {
         return ofMapValues((key, value) -> value, valueDiffer);
     }
 
-    public static <K, V> @NotNull Differ<Element<Map.Entry<K, V>>> ofMapValues() {
+    public static <K, V> @NotNull Differ<Map.Entry<K, V>> ofMapValues() {
         return ofMapValues((key, value) -> value, ofEquality(Function.identity()));
     }
 
@@ -980,10 +992,10 @@ public final class Differs {
      * @param <V>               mapped value type
      * @return a new differ
      */
-    public static <T, K, V> @NotNull Differ<Element<T>> ofMapsCustomized(@NotNull Function<? super T, ? extends Map<K, V>> mapper,
-                                                                         @NotNull Function<? super V, Optional<String>> hinter,
-                                                                         @NotNull Function<SetDiffer.SetDifferBuilder<K>, SetDiffer.SetDifferBuilder<K>> builderCustomizer,
-                                                                         @NotNull BiFunction<Emitter, Both<Map.Entry<K, V>>, Stream<Diff>> ifIntersection) {
+    public static <T, K, V> @NotNull Differ<T> ofMapsCustomized(@NotNull Function<? super T, ? extends Map<K, V>> mapper,
+                                                                @NotNull Function<? super V, Optional<String>> hinter,
+                                                                @NotNull Function<SetDiffer.SetDifferBuilder<K>, SetDiffer.SetDifferBuilder<K>> builderCustomizer,
+                                                                @NotNull BiFunction<Emitter, Both<Map.Entry<K, V>>, Stream<Diff>> ifIntersection) {
         return (emitter, element) -> diffMaps(hinter, emitter, builderCustomizer, element.values().map(mapper), ifIntersection);
     }
 
@@ -1025,9 +1037,9 @@ public final class Differs {
      * @param <V>               mapped value type
      * @return a new differ
      */
-    public static <T, K, V> @NotNull Differ<Element<T>> ofMapsCustomized(@NotNull Function<? super T, ? extends Map<K, V>> mapper,
-                                                                         @NotNull Function<SetDiffer.SetDifferBuilder<K>, SetDiffer.SetDifferBuilder<K>> builderCustomizer,
-                                                                         @NotNull Differ<Element<Map.Entry<K, V>>> ifIntersection) {
+    public static <T, K, V> @NotNull Differ<T> ofMapsCustomized(@NotNull Function<? super T, ? extends Map<K, V>> mapper,
+                                                                @NotNull Function<SetDiffer.SetDifferBuilder<K>, SetDiffer.SetDifferBuilder<K>> builderCustomizer,
+                                                                @NotNull Differ<Map.Entry<K, V>> ifIntersection) {
         return (emitter, element) -> diffMaps(emitter, builderCustomizer, element.values().map(mapper),
                 (emit, mapped) -> ifIntersection.diff(emit, Element.of(emit.getName(), mapped)));
     }
@@ -1067,8 +1079,8 @@ public final class Differs {
      * @param <V>            mapped value type
      * @return a new differ
      */
-    public static <T, K, V> @NotNull Differ<Element<T>> ofMaps(@NotNull Function<? super T, ? extends Map<K, V>> mapper,
-                                                               @NotNull Differ<Element<Map.Entry<K, V>>> ifIntersection) {
+    public static <T, K, V> @NotNull Differ<T> ofMaps(@NotNull Function<? super T, ? extends Map<K, V>> mapper,
+                                                      @NotNull Differ<Map.Entry<K, V>> ifIntersection) {
         return (emitter, element) -> diffMaps(emitter, element.values().map(mapper),
                 (emit, mapped) -> ifIntersection.diff(emit, Element.of(emit.getName(), mapped)));
     }
@@ -1108,8 +1120,8 @@ public final class Differs {
      * @param <V>               mapped value type
      * @return a new differ
      */
-    public static <T, K, V> @NotNull Differ<Element<T>> ofMapsCustomized(@NotNull Function<? super T, ? extends Map<K, V>> mapper,
-                                                                         @NotNull Function<SetDiffer.SetDifferBuilder<K>, SetDiffer.SetDifferBuilder<K>> builderCustomizer) {
+    public static <T, K, V> @NotNull Differ<T> ofMapsCustomized(@NotNull Function<? super T, ? extends Map<K, V>> mapper,
+                                                                @NotNull Function<SetDiffer.SetDifferBuilder<K>, SetDiffer.SetDifferBuilder<K>> builderCustomizer) {
         return (emitter, element) -> diffMaps(DEFAULT_HINTER, emitter, builderCustomizer, element.values().map(mapper),
                 (emit, values) -> Differs.diffEquality(emit, values.map(Map.Entry::getValue)));
     }
@@ -1128,8 +1140,8 @@ public final class Differs {
      * @param <V>    mapped value type
      * @return a new differ
      */
-    public static <T, K, V> @NotNull Differ<Element<T>> ofMaps(@NotNull Function<? super T, ? extends Map<K, V>> mapper,
-                                                               @NotNull Function<? super V, Optional<String>> hinter) {
+    public static <T, K, V> @NotNull Differ<T> ofMaps(@NotNull Function<? super T, ? extends Map<K, V>> mapper,
+                                                      @NotNull Function<? super V, Optional<String>> hinter) {
         return (emitter, element) -> diffMaps(hinter, emitter, element.values().map(mapper));
     }
 
@@ -1165,7 +1177,7 @@ public final class Differs {
      * @param <V>    mapped value type
      * @return a new differ
      */
-    public static <T, K, V> @NotNull Differ<Element<T>> ofMaps(@NotNull Function<? super T, ? extends Map<K, V>> mapper) {
+    public static <T, K, V> @NotNull Differ<T> ofMaps(@NotNull Function<? super T, ? extends Map<K, V>> mapper) {
         return (emitter, element) -> diffMaps(emitter, element.values().map(mapper));
     }
 
@@ -1179,7 +1191,7 @@ public final class Differs {
      * @param <V> mapped value type
      * @return a new differ
      */
-    public static <K, V> @NotNull Differ<Element<Map<K, V>>> ofMaps() {
+    public static <K, V> @NotNull Differ<Map<K, V>> ofMaps() {
         return (emitter, element) -> diffMaps(emitter, element.values());
     }
 

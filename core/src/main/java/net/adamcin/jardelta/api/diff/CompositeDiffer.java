@@ -23,6 +23,7 @@ import org.osgi.annotation.versioning.ConsumerType;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
@@ -31,7 +32,7 @@ import java.util.stream.Stream;
  *
  * @param <V> the type parameter of the element being diffed
  */
-public final class CompositeDiffer<V> implements Differ<Element<V>> {
+public final class CompositeDiffer<V> implements Differ<V> {
 
     /**
      * A builder of a map of child names to differs, which constitutes the structure of a new
@@ -50,7 +51,7 @@ public final class CompositeDiffer<V> implements Differ<Element<V>> {
          *                  or {@code ""} to emit for the base name
          * @param differ    a differ
          */
-        void put(String childName, Differ<Element<T>> differ);
+        void put(String childName, Differ<T> differ);
     }
 
     /**
@@ -63,23 +64,23 @@ public final class CompositeDiffer<V> implements Differ<Element<V>> {
      */
     @NotNull
     public static <T> CompositeDiffer<T> of(@NotNull Consumer<Builder<T>> builderConsumer) {
-        Map<String, Differ<Element<T>>> differs = new TreeMap<>();
+        Map<String, Differ<T>> differs = new TreeMap<>();
         builderConsumer.accept(differs::put);
-        return new CompositeDiffer<>(differs);
+        return new CompositeDiffer<>(Differs.concat(differs.entrySet().stream()
+                .map(Fun.mapEntry(Differs::emitChild))
+                .collect(Collectors.toList())));
     }
 
-    private final Map<String, Differ<Element<V>>> differs;
+    private final Differ<V> differs;
 
-    private CompositeDiffer(@NotNull Map<String, Differ<Element<V>>> differs) {
+    private CompositeDiffer(@NotNull Differ<V> differs) {
         this.differs = differs;
     }
 
     @Override
     @NotNull
-    public Stream<Diff> diff(@NotNull Emitter baseEmitter, @NotNull Element<V> values) {
-        final Emitter subEmitter = baseEmitter.forSubElement(values);
-        return differs.entrySet().stream()
-                .flatMap(Fun.mapEntry((key, func) -> func.diff(subEmitter.forChild(key), values)));
+    public Stream<Diff> diff(@NotNull Emitter baseEmitter, @NotNull Element<V> element) {
+        return differs.diff(baseEmitter.forSubElement(element), element);
     }
 
 }

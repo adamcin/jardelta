@@ -29,16 +29,16 @@ import java.util.stream.Stream;
  */
 @ConsumerType
 @FunctionalInterface
-public interface Differ<T extends Element<?>> {
+public interface Differ<T> {
 
     /**
      * Emit a stream of zero-to-many diffs computed for the given element. An implementing type may use the provided
      * emitter if appropriate, or it may use an internal emitter if required.
      *
      * @param baseEmitter a base emitter provided by the caller
-     * @param element the element being diffed
+     * @param element     the element being diffed
      * @return a diff stream
      */
     @NotNull
-    Stream<Diff> diff(@NotNull Emitter baseEmitter, @NotNull T element);
+    Stream<Diff> diff(@NotNull Emitter baseEmitter, @NotNull Element<T> element);
 }

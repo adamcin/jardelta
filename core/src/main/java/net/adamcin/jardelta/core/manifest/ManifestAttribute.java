@@ -26,39 +26,20 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.TreeMap;
 import java.util.function.Predicate;
 import java.util.jar.Attributes;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public class ManifestAttribute implements Element<Optional<String>> {
-    private final @NotNull Name name;
-    private final @NotNull Both<Optional<String>> values;
-
-    public ManifestAttribute(@NotNull Name name,
-                             @NotNull Both<Optional<String>> values) {
-        this.name = name;
-        this.values = values;
-    }
-
-    @Override
-    public @NotNull Name name() {
-        return name;
-    }
-
-    @Override
-    @NotNull
-    public Both<Optional<String>> values() {
-        return values;
-    }
-
-    public boolean isDiff() {
-        return !Objects.equals(values.left(), values.right());
-    }
+public final class ManifestAttribute {
 
     public static Attributes.Name nameOf(@NotNull String name) {
         return new Attributes.Name(name);
+    }
+
+    @NotNull
+    public static Name diffNameOfAttribute(@NotNull Attributes.Name attributeName) {
+        return Manifests.NAME_MANIFEST.appendSegment(attributeName.toString());
     }
 
     public static Attributes attributeSet(@NotNull String... names) {

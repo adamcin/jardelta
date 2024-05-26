@@ -23,7 +23,6 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
-import java.util.TreeSet;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -36,7 +35,7 @@ import java.util.stream.Stream;
  *
  * @param <E> the Set element type
  */
-public final class SetDiffer<E> implements Differ<Element<? extends Collection<E>>> {
+public final class SetDiffer<E> implements Differ<Collection<E>> {
 
     private final BiFunction<Emitter, ? super E, Emitter> emitterProjection;
 
@@ -73,8 +72,7 @@ public final class SetDiffer<E> implements Differ<Element<? extends Collection<E
     }
 
     @Override
-    public @NotNull Stream<Diff> diff(@NotNull Emitter baseEmitter,
-                                      @NotNull Element<? extends Collection<E>> element) {
+    public @NotNull Stream<Diff> diff(@NotNull Emitter baseEmitter, @NotNull Element<Collection<E>> element) {
         return diffSets(baseEmitter, element.values());
     }
 

@@ -32,9 +32,9 @@ import static net.adamcin.jardelta.api.diff.Differs.emitChild;
 import static net.adamcin.jardelta.api.diff.Differs.ofAtMostOne;
 import static net.adamcin.jardelta.api.diff.Differs.ofMapsCustomized;
 
-public class MetaTypeDesignateDiffer implements Differ<Element<List<MetaTypeDesignate>>> {
+public class MetaTypeDesignateDiffer implements Differ<List<MetaTypeDesignate>> {
 
-    private final Differ<Element<List<MetaTypeDesignate>>> firstDesignateDiffer = ofAtMostOne(Function.<List<MetaTypeDesignate>>identity(),
+    private final Differ<List<MetaTypeDesignate>> firstDesignateDiffer = ofAtMostOne(Function.identity(),
             concat(
                     emitChild("{isFactory}", Differs.ofEquality(MetaTypeDesignate::isFactory)),
                     ofMapsCustomized(MetaTypeDesignate::getObjectClassDefinitions,

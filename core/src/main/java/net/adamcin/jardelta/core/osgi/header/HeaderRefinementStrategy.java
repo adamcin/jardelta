@@ -20,12 +20,13 @@ import aQute.bnd.header.Parameters;
 import aQute.bnd.osgi.Constants;
 import net.adamcin.jardelta.api.Kind;
 import net.adamcin.jardelta.api.Name;
-import net.adamcin.jardelta.api.diff.Verb;
 import net.adamcin.jardelta.api.diff.Diff;
 import net.adamcin.jardelta.api.diff.Differ;
+import net.adamcin.jardelta.api.diff.Differs;
 import net.adamcin.jardelta.api.diff.Diffs;
 import net.adamcin.jardelta.api.diff.Element;
 import net.adamcin.jardelta.api.diff.Emitter;
+import net.adamcin.jardelta.api.diff.Verb;
 import net.adamcin.jardelta.api.jar.OpenJar;
 import net.adamcin.jardelta.core.Context;
 import net.adamcin.jardelta.core.Refinement;
@@ -39,14 +40,16 @@ import net.adamcin.streamsupport.Both;
 import net.adamcin.streamsupport.Fun;
 import org.apache.felix.metatype.DefaultMetaTypeProvider;
 import org.apache.felix.metatype.MetaData;
+import org.apache.sling.testing.mock.osgi.MapUtil;
 import org.jetbrains.annotations.NotNull;
 import org.osgi.framework.Bundle;
 
-import java.util.Dictionary;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.BiFunction;
 import java.util.function.Predicate;
 import java.util.jar.Attributes;
 import java.util.jar.Manifest;
@@ -54,6 +57,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class HeaderRefinementStrategy implements RefinementStrategy {
+    public static final Kind DIFF_KIND = Kind.of("osgi.header");
     private static final Attributes NAMES = ManifestAttribute.attributeSet(
             Constants.EXPORT_PACKAGE,
             Constants.IMPORT_PACKAGE,
@@ -67,7 +71,8 @@ public class HeaderRefinementStrategy implements RefinementStrategy {
             Constants.INCLUDE_RESOURCE
     );
 
-    private static final Predicate<Diff> REFINEMENT_TEST_COMMON = diff -> diff.getKind().isSubKindOf(ManifestRefinementStrategy.DIFF_KIND)
+    private static final Predicate<Diff> REFINEMENT_TEST_COMMON = diff -> diff
+            .getKind().isSubKindOf(ManifestRefinementStrategy.DIFF_KIND)
             && diff.getVerb() == Verb.CHANGED;
     private static final Predicate<Diff> REFINEMENT_TEST_PARAMETERIZED = Fun.composeTest1(
             Fun.compose1(Diff::getName, Name::getSegment),
@@ -75,7 +80,7 @@ public class HeaderRefinementStrategy implements RefinementStrategy {
 
     @Override
     public @NotNull Kind getKind() {
-        return InstructionsDiffer.DIFF_KIND;
+        return DIFF_KIND;
     }
 
     @Override
@@ -110,19 +115,21 @@ public class HeaderRefinementStrategy implements RefinementStrategy {
                         .flatMap(Stream::of)
                         .collect(Collectors.toSet()));
 
-        final Differ<ManifestAttribute> complexDiffer = (emitter, diffed) -> {
-            assert diffed.isDiff();
+        final Differ<Optional<String>> complexDiffer = (emitter, diffed) -> {
+            final Attributes.Name attributeName = ManifestAttribute.nameOf(diffed.name().getSegment());
+
             final Both<Optional<Parameters>> bothParams = diffed.values()
                     .map(value -> value.map(raw -> new Parameters(raw, null, true)));
-            final Instructions details = new Instructions(ManifestAttribute.nameOf(diffed.name().getSegment()),
-                    bothParams);
-            return new InstructionsDiffer().diff(emitter, details);
+
+            return new InstructionsDiffer(attributeName)
+                    .diff(emitter, Element.of(diffed.name(), bothParams));
         };
 
-        final Emitter attrEmitter = Diff.emitterOf(InstructionsDiffer.DIFF_KIND);
+        final Emitter attrEmitter = Diff.emitterOf(DIFF_KIND).forName(Manifests.NAME_MANIFEST);
         Stream<Diff> complexDiffs = refined.stream()
+                .filter(REFINEMENT_TEST_PARAMETERIZED)
                 .map(Diff::getName)
-                .map(name -> new ManifestAttribute(name, openJars.values().map(jar ->
+                .map(name -> Element.of(name, openJars.values().map(jar ->
                         Optional.ofNullable(jar.getMainAttributeValue(name)))))
                 .flatMap(mfAttr -> complexDiffer.diff(attrEmitter, mfAttr));
 
@@ -131,23 +138,28 @@ public class HeaderRefinementStrategy implements RefinementStrategy {
         // All headers in a bundle's manifest can be localized.
         // However, the Framework must always use the non-localized versions of headers that have Framework semantics.
         final Set<String> allLocales = bothLocales.stream().flatMap(Set::stream).collect(Collectors.toSet());
-        Stream<Diff> localeDiffs = allLocales.stream()
-                .flatMap(locale -> {
-                    final Differ<ManifestAttribute> localeDiffer = new LocalizedHeaderDiff(locale);
-                    final Both<Dictionary<String, String>> bothLocalizedHeaders = bothBundles.map(bundle -> bundle.getHeaders(locale));
-                    return localizedAttrs.stream()
-                            .map(Attributes::keySet)
-                            .flatMap(Set::stream)
-                            .map(Attributes.Name.class::cast)
-                            .map(Attributes.Name::toString)
-                            .map(Name::of)
-                            .map(name -> new ManifestAttribute(Manifests.NAME_MANIFEST.append(name)
-                                    .appendSegment(MetaTypeDesignateDiffer.localeName(locale)), bothLocalizedHeaders.map(dict ->
-                                    Optional.ofNullable(dict.get(name.toString())))))
-                            .flatMap(mfAttr -> localeDiffer.diff(attrEmitter, mfAttr));
-                });
+        allLocales.add("");
+        final Differ<Bundle> bundleLocaleDiffer = Differs.concat(
+                allLocales.stream().map(locale -> {
+                    final BiFunction<Emitter, String, Emitter> localeEmitter =
+                            (baseEmitter, key) -> baseEmitter.forChild(key).forChild(MetaTypeDesignateDiffer.localeName(locale));
+                    return Differs.emitKind(Kind.of("osgi.header.locale"),
+                            Differs.<Bundle, String, String>ofMapsCustomized(bundle -> MapUtil.toMap(bundle.getHeaders(locale.isEmpty() ? null : locale)),
+                                    builder -> builder.emitterProjection(localeEmitter)));
+                }).collect(Collectors.toList())
+        );
 
-        return new Refinement(refined, Stream.concat(complexDiffs, localeDiffs).collect(Diffs.collector()));
+        final Diffs refinedDiffs = refined.stream().collect(Diffs.collector());
+        return new Refinement(refined,
+                Stream.concat(complexDiffs,
+                        bundleLocaleDiffer.diff(attrEmitter,
+                                Element.of(Manifests.NAME_MANIFEST, bothBundles))
+                                .filter(diff -> refinedDiffs
+                                        .withExactName(Objects.requireNonNull(diff.getName().getParent()))
+                                        .withVerbs(diff.getVerb())
+                                        .withKind(Kind.of("manifest"))
+                                        .isEmpty()))
+                        .collect(Diffs.collector()));
     }
 
     @NotNull Attributes getLocalizedHeaders(@NotNull OpenJar openJar) {

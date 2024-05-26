@@ -16,11 +16,11 @@
 
 package net.adamcin.jardelta.core.osgi.scr;
 
+import net.adamcin.jardelta.api.diff.CompositeDiffer;
 import net.adamcin.jardelta.api.diff.Diff;
 import net.adamcin.jardelta.api.diff.Differ;
 import net.adamcin.jardelta.api.diff.Element;
 import net.adamcin.jardelta.api.diff.Emitter;
-import net.adamcin.jardelta.api.diff.CompositeDiffer;
 import net.adamcin.streamsupport.Fun;
 import org.apache.felix.scr.impl.metadata.ComponentMetadata;
 import org.apache.felix.scr.impl.metadata.ReferenceMetadata;
@@ -38,7 +38,7 @@ import static net.adamcin.jardelta.api.diff.Differs.ofMaps;
 import static net.adamcin.jardelta.api.diff.Differs.ofNullables;
 import static net.adamcin.jardelta.api.diff.Differs.ofSets;
 
-public class ScrComponentsDiffer implements Differ<Element<ComponentMetadata>> {
+public class ScrComponentsDiffer implements Differ<ComponentMetadata> {
 
     private final CompositeDiffer<ComponentMetadata> differs = CompositeDiffer.of(builder -> {
         builder.put("@activate", ofNullables(ComponentMetadata::getActivate));

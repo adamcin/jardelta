@@ -45,7 +45,7 @@ public class ManifestRefinementStrategy implements RefinementStrategy {
                                       @NotNull Element<OpenJar> openJars) {
         List<Diff> superseded = diffs
                 .withExactName(Manifests.NAME_MANIFEST)
-                .withActions(Verb.CHANGED)
+                .withVerbs(Verb.CHANGED)
                 .stream().collect(Collectors.toList());
         if (superseded.isEmpty()) {
             return Refinement.EMPTY;

@@ -65,6 +65,7 @@
                         <configuration>
                             <bnd><![CDATA[
                                 Bundle-SymbolicName: net.adamcin.jardelta.testing.example
+                                Bundle-Description: %bundle.description
                                 Automatic-Module-Name: net.adamcin.jardelta.testing.example
                                 # reproducible builds (https://github.com/bndtools/bnd/issues/3521)
                                 -noextraheaders: true
